@@ -9,6 +9,7 @@ import org.springframework.web.reactive.socket.WebSocketMessage;
 import org.springframework.web.reactive.socket.WebSocketSession;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import teamssavice.chat.kafka.ChatKafkaProducer;
 import teamssavice.chat.model.ChatMessage;
 import teamssavice.chat.service.ChatService;
 
@@ -21,6 +22,7 @@ public class ChatWebSocketHandler implements WebSocketHandler {
 
     private final ObjectMapper objectMapper;
     private final ChatService chatService;
+    private final ChatKafkaProducer chatKafkaProducer;
 
     @Override
     public Mono<Void> handle(WebSocketSession session) {
@@ -34,21 +36,18 @@ public class ChatWebSocketHandler implements WebSocketHandler {
                     try {
                         ChatMessage message = objectMapper.readValue(json, ChatMessage.class);
                         message.setCreatedAt();
-
                         if(ChatMessage.MessageType.ENTER.equals(message.getType())) {
-                            // 구독 요청
                             chatService.joinRoom(userId, message.getRoomId());
                             message.setMessage(message.getSender() + "님이 입장했습니다.");
-                            chatService.sendMessage(message);
-                        } else {
-                            chatService.sendMessage(message);
                         }
-                        return Mono.empty();
+
+                        return chatKafkaProducer.send(message);
                     } catch (JsonProcessingException e) {
                         e.printStackTrace();
                         return Mono.error(e);
                     }
                 })
+                .doFinally(sig -> chatService.removeUser(userId))
                 .then();
 
         // 2. 출력 처리: (Server -> Client)
