@@ -12,9 +12,6 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ChatMessage {
-    public enum MessageType {
-        ENTER, TALK // ENTER: 방 구독 요청, TALK: 대화
-    }
     private MessageType type;
     private String roomId;
     private String sender;

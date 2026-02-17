@@ -17,11 +17,7 @@ public class ChatKafkaProducer {
     public Mono<Void> send(ChatMessage message) {
         System.out.println("produce: " + message.getMessage());
         return Mono.fromFuture(
-                kafkaTemplate
-                        .send(kafkaProperties.chatTopic(), message.getRoomId(), message)
-            )
-                .doOnSuccess(result -> System.out.println("Kafka 성공:" + result.getRecordMetadata().offset()))
-            .doOnError(e -> System.out.println("Kafka 전송 실패: " + e.getMessage()))
-            .then();
+                kafkaTemplate.send(kafkaProperties.chatTopic(), message.getRoomId(), message)
+            ).then();
     }
 }

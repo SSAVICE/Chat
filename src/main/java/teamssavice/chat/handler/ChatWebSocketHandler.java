@@ -11,6 +11,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import teamssavice.chat.kafka.ChatKafkaProducer;
 import teamssavice.chat.model.ChatMessage;
+import teamssavice.chat.model.MessageType;
 import teamssavice.chat.service.ChatService;
 
 import java.net.URI;
@@ -36,18 +37,20 @@ public class ChatWebSocketHandler implements WebSocketHandler {
                     try {
                         ChatMessage message = objectMapper.readValue(json, ChatMessage.class);
                         message.setCreatedAt();
-                        if(ChatMessage.MessageType.ENTER.equals(message.getType())) {
+                        if(MessageType.ENTER.equals(message.getType())) {
                             chatService.joinRoom(userId, message.getRoomId());
                             message.setMessage(message.getSender() + "님이 입장했습니다.");
                         }
 
-                        return chatKafkaProducer.send(message);
+                        return chatKafkaProducer.send(message)
+                                .doOnError(e -> System.out.println("Kafka 전송 실패: " + e.getMessage()))
+                                .onErrorResume(e -> Mono.empty());
                     } catch (JsonProcessingException e) {
                         e.printStackTrace();
                         return Mono.error(e);
                     }
                 })
-                .doFinally(sig -> chatService.removeUser(userId))
+                .doOnTerminate(() -> chatService.removeUser(userId))
                 .then();
 
         // 2. 출력 처리: (Server -> Client)
