@@ -6,16 +6,20 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
-import teamssavice.chat.model.ChatMember;
+import reactor.core.scheduler.Schedulers;
+import teamssavice.chat.kafka.KafkaEvent;
+import teamssavice.chat.kafka.KafkaProducer;
+import teamssavice.chat.model.ChatMemberEntity;
 import teamssavice.chat.model.ChatMessage;
-import teamssavice.chat.model.MessageType;
-import teamssavice.chat.model.Room;
+import teamssavice.chat.model.RoomEntity;
+import teamssavice.chat.model.RoomType;
 import teamssavice.chat.repository.ChatMemberRepository;
 import teamssavice.chat.repository.RoomRepository;
+import teamssavice.chat.service.dto.ChatCommand;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -24,60 +28,81 @@ public class ChatService {
 
     private final RoomRepository roomRepository;
     private final ChatMemberRepository chatMemberRepository;
+    private final KafkaProducer kafkaProducer;
 
-    // 1. 모든 접속자의 개인 우편함 (Key: user ID, Value: 개인 Sink)
     private final Map<String, Sinks.Many<ChatMessage>> userSinks = new ConcurrentHashMap<>();
-
-    // 2. 채팅방별 구독자 명단 (Key: Room ID, Value: Sender들의 집합) // Redis라고 가정, Redis Set per user
-    private final Map<String, Set<String>> roomSubscribers = new ConcurrentHashMap<>();
-
-    // 3. 사용자별 참여중인 방 목록 (Key: User ID -> Set<Room ID>) // Redis라고 가정, Redis Set per user
-    private final Map<String, Set<String>> userRooms = new ConcurrentHashMap<>();
+    private final Map<String, Sinks.Many<ChatMessage>> roomSinks = new ConcurrentHashMap<>();
 
     // 사용자 접속 시 개인 우편함 생성
     public Flux<ChatMessage> registerUser(String userId) {
-        Sinks.Many<ChatMessage> sink = Sinks.many().multicast().onBackpressureBuffer();
-        userSinks.put(userId, sink);
-        return sink.asFlux();
+        Sinks.Many<ChatMessage> userSink = Sinks.many().multicast().onBackpressureBuffer();
+        userSinks.put(userId, userSink);
+
+        Flux<ChatMessage> output = userSink.asFlux()
+                .doFinally(sig -> userSinks.remove(userId));
+
+        chatMemberRepository.findAllByUserId(userId)
+                .map(ChatMemberEntity::getRoomId)
+                .flatMap(roomId -> connectRoomToUser(roomId, userSink))
+                .subscribeOn(Schedulers.boundedElastic())
+                .doOnError(e -> System.out.println("Room 연결 실패" + e.getMessage()))
+                .subscribe();
+
+         return output;
     }
 
-    public Mono<Void> ensureRoomInMemory(ChatMessage message) {
-        if(roomSubscribers.containsKey(message.getRoomId())) return Mono.empty();
+    private Mono<Void> connectRoomToUser(String roomId, Sinks.Many<ChatMessage> userSink) {
+        Sinks.Many<ChatMessage> roomSink = roomSinks.computeIfAbsent(roomId, id -> Sinks.many().multicast().onBackpressureBuffer());
 
-        return createRoomIfNotExists(message)
-                .then(Mono.fromRunnable(() ->
-                        roomSubscribers.computeIfAbsent(message.getRoomId(), k -> ConcurrentHashMap.newKeySet())
-                            .addAll(List.of(message.getSender(), message.getReceiver()))
-                ))
-                .then(createChatMemberIfNotExists(message))
-                .then(Mono.fromRunnable(() -> {
-                    userRooms.computeIfAbsent(message.getReceiver(), k -> ConcurrentHashMap.newKeySet())
-                            .add(message.getRoomId());
-                    userRooms.computeIfAbsent(message.getSender(), k -> ConcurrentHashMap.newKeySet())
-                            .add(message.getRoomId());
-                }));
+        return roomSink.asFlux()
+                .takeUntilOther(userSink.asFlux().ignoreElements())
+                .doOnNext(userSink::tryEmitNext)
+                .doOnError(sig -> System.out.println(sig))
+                .doFinally(sig -> {
+                    if (roomSink.currentSubscriberCount() == 0)
+                        roomSinks.remove(roomId);
+                }).then();
     }
 
-    public Mono<Void> createRoomIfNotExists(ChatMessage message) {
-        Room room = Room.builder()
-                .roomId(message.getRoomId())
+    public Mono<Void> sendMessage(ChatCommand.Chat command) {
+        return ensureRoomInMemory(command)
+                .then(kafkaProducer.produce(KafkaEvent.Chat.from(command)))
+                .doOnError(e -> System.out.println("Kafka 전송 실패: " + e.getMessage()))
+                .onErrorResume(e -> Mono.empty());
+    }
+
+    public Mono<Void> ensureRoomInMemory(ChatCommand.Chat command) {
+        if(!RoomType.DM.equals(command.roomType())) return Mono.empty();
+
+        return roomRepository.existsByRoomId(command.roomId())
+                .flatMap(exist -> {
+                    if (exist) return Mono.empty();
+                    return createRoomIfNotExists(command.roomId(), command.createdAt())
+                            .then(createChatMemberIfNotExists(command))
+                            .then(kafkaProducer.produce(KafkaEvent.Chat.createEvent(command)));
+                });
+    }
+
+    public Mono<Void> createRoomIfNotExists(String roomId, LocalDateTime createdAt) {
+        RoomEntity roomEntity = RoomEntity.builder()
+                .roomId(roomId)
                 .roomName("")
-                .type(MessageType.TEXT)
-                .createdAt(message.getCreatedAt())
+                .type(RoomType.DM)
+                .createdAt(createdAt)
                 .build();
 
-        return roomRepository.save(room)
+        return roomRepository.save(roomEntity)
                 .onErrorResume(DuplicateKeyException.class, e -> Mono.empty())
                 .then();
     }
 
-    public Mono<Void> createChatMemberIfNotExists(ChatMessage message) {
-        List<String> userIds = List.of(message.getSender(), message.getReceiver());
-        List<ChatMember> members = userIds.stream()
-                .map(userId -> ChatMember.builder()
-                        .roomId(message.getRoomId())
+    public Mono<Void> createChatMemberIfNotExists(ChatCommand.Chat command) {
+        List<String> userIds = List.of(command.sender(), command.receiver());
+        List<ChatMemberEntity> members = userIds.stream()
+                .map(userId -> ChatMemberEntity.builder()
+                        .roomId(command.roomId())
                         .userId(userId)
-                        .joinedAt(message.getCreatedAt())
+                        .joinedAt(command.createdAt())
                         .isLeft(false)
                         .lastReadMsgId(0L)
                         .build())
@@ -88,30 +113,29 @@ public class ChatService {
                 .then();
     }
 
-    public void sendMessageToLocalSubscribers(ChatMessage message) {
-        String roomId = message.getRoomId();
-        Set<String> subscribers = roomSubscribers.get(roomId);
-        if(subscribers != null) {
-            subscribers.forEach(userId -> {
-                Sinks.Many<ChatMessage> sink = userSinks.get(userId);
-                if(sink != null) sink.tryEmitNext(message);
-            });
+    public void sendMessageToLocalSubscribers(KafkaEvent.Chat event) {
+        ChatMessage model = ChatMessage.builder()
+                .type(event.type())
+                .roomType(event.roomType())
+                .roomId(event.roomId())
+                .receiver(event.receiver())
+                .sender(event.sender())
+                .message(event.message())
+                .createdAt(event.createdAt())
+                .build();
+
+        String roomId = event.roomId();
+        Sinks.Many<ChatMessage> roomSink = roomSinks.get(roomId);
+        if(roomSink != null) {
+            roomSink.tryEmitNext(model);
         }
     }
 
-    public void removeUser(String userId) {
-        userSinks.remove(userId);
-        Set<String> joinedRooms = userRooms.remove(userId);
-        if(joinedRooms != null) {
-            joinedRooms.forEach(roomId -> {
-                Set<String> subscribers = roomSubscribers.get(roomId);
-                if(subscribers != null) {
-                    subscribers.remove(userId);
-                    if(subscribers.isEmpty()) {
-                        roomSubscribers.remove(roomId);
-                    }
-                }
-            });
-        }
+    public void connectRoomSinkForUser(KafkaEvent.Chat event) {
+        chatMemberRepository.findAllByRoomId(event.roomId())
+                .map(ChatMemberEntity::getUserId)
+                .filter(userSinks::containsKey)
+                .flatMap(userId -> connectRoomToUser(event.roomId(), userSinks.get(userId)))
+                .subscribe(null, error -> System.out.println("RoomSink 연결 오류: " + error.getMessage()));
     }
 }

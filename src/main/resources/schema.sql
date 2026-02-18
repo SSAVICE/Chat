@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS room (
+CREATE TABLE IF NOT EXISTS roomEntity (
     id BIGINT AUTO_INCREMENT PRIMARY KEY, -- @Id Long id
     room_id VARCHAR(255) NOT NULL UNIQUE, -- String roomId
     room_name VARCHAR(255) NOT NULL,      -- String roomName

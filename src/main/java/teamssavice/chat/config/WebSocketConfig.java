@@ -7,7 +7,7 @@ import org.springframework.web.reactive.config.EnableWebFlux;
 import org.springframework.web.reactive.handler.SimpleUrlHandlerMapping;
 import org.springframework.web.reactive.socket.WebSocketHandler;
 import org.springframework.web.reactive.socket.server.support.WebSocketHandlerAdapter;
-import teamssavice.chat.handler.ChatWebSocketHandler;
+import teamssavice.chat.websocket.ChatWebSocketHandler;
 
 import java.util.HashMap;
 import java.util.Map;

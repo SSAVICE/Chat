@@ -19,15 +19,4 @@ public class ChatMessage {
     private String sender;
     private String message;
     private LocalDateTime createdAt;
-
-    public void setCreatedAt() {
-        createdAt = LocalDateTime.now();
-    }
-
-    public void generateRoomId() {
-        if (!RoomType.DM.equals(roomType))  return;
-
-        if(sender.compareTo(receiver) <= 0)     this.roomId = sender + "_" + receiver;
-        else                                    this.roomId = receiver + "_" + sender;
-    }
 }

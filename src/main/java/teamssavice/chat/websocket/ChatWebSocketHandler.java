@@ -1,29 +1,29 @@
-package teamssavice.chat.handler;
+package teamssavice.chat.websocket;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.socket.WebSocketHandler;
 import org.springframework.web.reactive.socket.WebSocketMessage;
 import org.springframework.web.reactive.socket.WebSocketSession;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import teamssavice.chat.kafka.ChatKafkaProducer;
-import teamssavice.chat.model.ChatMessage;
-import teamssavice.chat.model.RoomType;
+import reactor.core.scheduler.Schedulers;
 import teamssavice.chat.service.ChatService;
+import teamssavice.chat.service.dto.ChatCommand;
+import teamssavice.chat.websocket.dto.WebSocketRequest;
 
 import java.net.URI;
 
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class ChatWebSocketHandler implements WebSocketHandler {
 
     private final ObjectMapper objectMapper;
     private final ChatService chatService;
-    private final ChatKafkaProducer chatKafkaProducer;
 
     @Override
     public Mono<Void> handle(WebSocketSession session) {
@@ -33,35 +33,29 @@ public class ChatWebSocketHandler implements WebSocketHandler {
         // 1. 입력 처리 (Client -> Server)
         Mono<Void> input = session.receive()
                 .map(WebSocketMessage::getPayloadAsText)
-                .flatMap(json -> Mono.fromCallable(() -> objectMapper.readValue(json, ChatMessage.class))
-                        .map(message -> {
-                            message.setCreatedAt();
-                            if (RoomType.DM.equals(message.getRoomType())) message.generateRoomId();
-                            return message;
-                        })
-                        .flatMap(message -> {
-                            Mono<Void> ensureRoomMono = RoomType.DM.equals(message.getRoomType())
-                                    ? chatService.ensureRoomInMemory(message)
-                                    : Mono.empty();
-
-                            return ensureRoomMono
-                                    .then(chatKafkaProducer.produce(message))
-                                    .doOnError(e -> System.out.println("Kafka 전송 실패: " + e.getMessage()))
-                                    .onErrorResume(e -> Mono.empty());
-                        })
-                )
-                .doFinally(sig -> chatService.removeUser(userId))
+                .flatMap(json ->
+                        Mono.fromCallable(() -> objectMapper.readValue(json, WebSocketRequest.Chat.class))
+                                .onErrorResume(e -> {
+                                    log.warn("잘못된 JSON 수신: {}", json, e);
+                                    return Mono.empty(); // 이 메시지만 drop
+                                })
+                ).map(ChatCommand.Chat::from)
+                .flatMap(chatService::sendMessage)
+                .doFinally(signal -> log.info("Input Flux 종료: {}", signal))
                 .then();
+
         // 2. 출력 처리: (Server -> Client)
         Flux<WebSocketMessage> output = chatService.registerUser(userId)
-                .flatMap(message -> {
-                    try {
-                        String json = objectMapper.writeValueAsString(message);
-                        return Mono.just(session.textMessage(json));
-                    } catch (JsonProcessingException e) {
-                        return Mono.error(e);
-                    }
-                });
+                .flatMap(message ->
+                        Mono.fromCallable(() -> objectMapper.writeValueAsString(message))
+                                .subscribeOn(Schedulers.boundedElastic())
+                                .map(session::textMessage)
+                                .onErrorResume(e -> {
+                                    log.error("Kafka 전송 실패 roomId={}", message.getRoomId(), e);
+                                    return Mono.empty();
+                                })
+                )
+                .doFinally(signal -> log.info("output Flux 종료: {}", signal)) ;
 
         return Mono.zip(input, session.send(output)).then();
     }

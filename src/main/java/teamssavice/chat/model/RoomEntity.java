@@ -12,25 +12,22 @@ import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
 
-@Table
+@Table("room")
 @Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ChatMember {
+public class RoomEntity {
     @Id
     private Long id;
 
     @NotBlank
     private String roomId;
     @NotNull
-    private String userId;
+    private String roomName;
+    @NotNull
+    private RoomType type;
 
     @CreatedDate
-    private LocalDateTime joinedAt;
-
-    private boolean isLeft;
-
-    @NotNull
-    private Long lastReadMsgId;
+    private LocalDateTime createdAt;
 }
