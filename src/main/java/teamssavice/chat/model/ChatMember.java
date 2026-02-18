@@ -24,10 +24,12 @@ public class ChatMember {
     @NotBlank
     private String roomId;
     @NotNull
-    private Long userId;
+    private String userId;
 
     @CreatedDate
     private LocalDateTime joinedAt;
+
+    private boolean isLeft;
 
     @NotNull
     private Long lastReadMsgId;

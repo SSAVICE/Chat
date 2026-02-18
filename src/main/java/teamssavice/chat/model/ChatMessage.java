@@ -13,7 +13,9 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class ChatMessage {
     private MessageType type;
+    private RoomType roomType;
     private String roomId;
+    private String receiver; // roomType이 DM일 때만 receiver 존재
     private String sender;
     private String message;
     private LocalDateTime createdAt;
@@ -22,7 +24,10 @@ public class ChatMessage {
         createdAt = LocalDateTime.now();
     }
 
-    public void setMessage(String message) {
-        this.message = message;
+    public void generateRoomId() {
+        if (!RoomType.DM.equals(roomType))  return;
+
+        if(sender.compareTo(receiver) <= 0)     this.roomId = sender + "_" + receiver;
+        else                                    this.roomId = receiver + "_" + sender;
     }
 }

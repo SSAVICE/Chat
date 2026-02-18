@@ -14,10 +14,11 @@ public class ChatKafkaProducer {
     private final KafkaTemplate<String, ChatMessage> kafkaTemplate;
     private final KafkaProperties kafkaProperties;
 
-    public Mono<Void> send(ChatMessage message) {
+    public Mono<Void> produce(ChatMessage message) {
         System.out.println("produce: " + message.getMessage());
         return Mono.fromFuture(
                 kafkaTemplate.send(kafkaProperties.chatTopic(), message.getRoomId(), message)
-            ).then();
+            ).doOnError(e -> System.out.println("Kafka 전송 실패: " + e.getMessage()))
+            .then();
     }
 }

@@ -11,7 +11,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import teamssavice.chat.kafka.ChatKafkaProducer;
 import teamssavice.chat.model.ChatMessage;
-import teamssavice.chat.model.MessageType;
+import teamssavice.chat.model.RoomType;
 import teamssavice.chat.service.ChatService;
 
 import java.net.URI;
@@ -33,26 +33,25 @@ public class ChatWebSocketHandler implements WebSocketHandler {
         // 1. 입력 처리 (Client -> Server)
         Mono<Void> input = session.receive()
                 .map(WebSocketMessage::getPayloadAsText)
-                .flatMap(json -> {
-                    try {
-                        ChatMessage message = objectMapper.readValue(json, ChatMessage.class);
-                        message.setCreatedAt();
-                        if(MessageType.ENTER.equals(message.getType())) {
-                            chatService.joinRoom(userId, message.getRoomId());
-                            message.setMessage(message.getSender() + "님이 입장했습니다.");
-                        }
+                .flatMap(json -> Mono.fromCallable(() -> objectMapper.readValue(json, ChatMessage.class))
+                        .map(message -> {
+                            message.setCreatedAt();
+                            if (RoomType.DM.equals(message.getRoomType())) message.generateRoomId();
+                            return message;
+                        })
+                        .flatMap(message -> {
+                            Mono<Void> ensureRoomMono = RoomType.DM.equals(message.getRoomType())
+                                    ? chatService.ensureRoomInMemory(message)
+                                    : Mono.empty();
 
-                        return chatKafkaProducer.send(message)
-                                .doOnError(e -> System.out.println("Kafka 전송 실패: " + e.getMessage()))
-                                .onErrorResume(e -> Mono.empty());
-                    } catch (JsonProcessingException e) {
-                        e.printStackTrace();
-                        return Mono.error(e);
-                    }
-                })
-                .doOnTerminate(() -> chatService.removeUser(userId))
+                            return ensureRoomMono
+                                    .then(chatKafkaProducer.produce(message))
+                                    .doOnError(e -> System.out.println("Kafka 전송 실패: " + e.getMessage()))
+                                    .onErrorResume(e -> Mono.empty());
+                        })
+                )
+                .doFinally(sig -> chatService.removeUser(userId))
                 .then();
-
         // 2. 출력 처리: (Server -> Client)
         Flux<WebSocketMessage> output = chatService.registerUser(userId)
                 .flatMap(message -> {
