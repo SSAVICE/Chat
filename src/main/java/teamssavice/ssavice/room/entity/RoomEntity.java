@@ -6,10 +6,9 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
-import teamssavice.ssavice.room.constants.RoomType;
+import teamssavice.ssavice.room.RoomType;
 
 import java.time.LocalDateTime;
 
@@ -30,8 +29,13 @@ public class RoomEntity {
     @NotNull
     private RoomType type;
 
-    @CreatedDate
+    @NotNull
     private LocalDateTime createdAt;
 
     private Long lastServiceId;
+
+    public String getOppSubject(String subject) {
+        String[] arr = roomName.split("_");
+        return subject.equals(arr[0]) ? arr[1] : arr[0];
+    }
 }

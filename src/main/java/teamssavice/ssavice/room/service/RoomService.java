@@ -9,7 +9,7 @@ import teamssavice.ssavice.chatmember.service.ChatMemberReadService;
 import teamssavice.ssavice.company.service.CompanyReadService;
 import teamssavice.ssavice.global.constants.Role;
 import teamssavice.ssavice.global.dto.Auth;
-import teamssavice.ssavice.room.constants.RoomType;
+import teamssavice.ssavice.room.RoomType;
 import teamssavice.ssavice.room.entity.RoomEntity;
 import teamssavice.ssavice.user.service.UserReadService;
 
@@ -26,8 +26,7 @@ public class RoomService {
     public Mono<List<ChatModel.Room>> findAllRooms(Auth auth) {
         return chatMemberReadService.findAllBySubject(auth.subject())
                 .map(ChatMemberEntity::getRoomId)
-                .flatMap(roomReadService::findByRoomId)
-                .map(ChatModel.Room::from)
+                .flatMap(roomId -> findByRoomId(roomId, auth))
                 .collectList();
     }
 
@@ -37,10 +36,9 @@ public class RoomService {
     }
 
     private Mono<ChatModel.Room> getOppositeName(RoomEntity room, Auth auth) {
-        if(!RoomType.DM.equals(room.getType())) return Mono.just(ChatModel.Room.from(room));
+        if(RoomType.GROUP.equals(room.getType())) return Mono.just(ChatModel.Room.from(room, room.getRoomName()));
 
-        String[] arr = room.getRoomName().split("_");
-        String oppSubject = auth.subject().equals(arr[0]) ? arr[1] : arr[0];
+        String oppSubject = room.getOppSubject(auth.subject());
         Auth oppAuth = Auth.of(oppSubject);
 
         if(oppAuth.canAccess(Role.USER)) {

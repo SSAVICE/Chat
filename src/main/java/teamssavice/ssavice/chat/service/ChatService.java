@@ -1,24 +1,23 @@
 package teamssavice.ssavice.chat.service;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Schedulers;
-import teamssavice.ssavice.chat.entity.ChatMessage;
+import teamssavice.ssavice.chat.ChatMessage;
 import teamssavice.ssavice.chat.service.dto.ChatCommand;
 import teamssavice.ssavice.chatmember.entity.ChatMemberEntity;
 import teamssavice.ssavice.chatmember.service.ChatMemberReadService;
 import teamssavice.ssavice.chatmember.service.ChatMemberWriteService;
-import teamssavice.ssavice.kafka.KafkaEvent;
+import teamssavice.ssavice.global.property.KafkaProperties;
 import teamssavice.ssavice.kafka.KafkaProducer;
-import teamssavice.ssavice.room.constants.RoomType;
+import teamssavice.ssavice.kafka.event.KafkaEvent;
+import teamssavice.ssavice.room.RoomType;
 import teamssavice.ssavice.room.service.RoomReadService;
 import teamssavice.ssavice.room.service.RoomWriteService;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -27,6 +26,9 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequiredArgsConstructor
 public class ChatService {
 
+    private final KafkaProperties kafkaProperties;
+
+    private final ChatWriteService chatWriteService;
     private final KafkaProducer kafkaProducer;
     private final RoomWriteService roomWriteService;
     private final RoomReadService roomReadService;
@@ -69,40 +71,31 @@ public class ChatService {
 
     public Mono<Void> sendMessage(ChatCommand.Chat command) {
         return ensureRoomInMemory(command)
-                .then(kafkaProducer.produce(KafkaEvent.Chat.from(command)))
-                .doOnError(e -> System.out.println("Kafka 전송 실패: " + e.getMessage()))
+                .then(
+                    Mono.when(
+                        kafkaProducer.publish(kafkaProperties.chatTopic(), command.roomId(), KafkaEvent.Chat.from(command)),
+                        kafkaProducer.publish(kafkaProperties.saveTopic(), command.roomId(), KafkaEvent.Save.from(command))
+                    )
+                ).doOnError(e -> System.out.println("Kafka 전송 실패: " + e.getMessage()))
                 .onErrorResume(e -> Mono.empty());
     }
 
     public Mono<Void> ensureRoomInMemory(ChatCommand.Chat command) {
         if(!RoomType.DM.equals(command.roomType())) return Mono.empty();
+        String roomName = command.sender() + "_" + command.receiver();
 
         return roomReadService.existsByRoomId(command.roomId())
                 .flatMap(exist -> {
                     if (exist) return Mono.empty();
-                    return createRoomIfNotExists(command.roomId(), command.createdAt())
-                            .then(createChatMemberIfNotExists(command))
-                            .then(kafkaProducer.produce(KafkaEvent.Chat.createEvent(command)));
+                    return roomWriteService.save(command.roomId(), roomName, command.createdAt())
+                            .then(chatMemberWriteService.saveAll(List.of(command.sender(), command.receiver()), command.roomId(), command.createdAt()))
+                            .then(kafkaProducer.publish(kafkaProperties.chatTopic(), command.roomId(), KafkaEvent.Chat.createEvent(command)));
                 });
-    }
-
-    public Mono<Void> createRoomIfNotExists(String roomId, LocalDateTime createdAt) {
-        return roomWriteService.save(roomId, createdAt)
-                .onErrorResume(DuplicateKeyException.class, e -> Mono.empty())
-                .then();
-    }
-
-    public Mono<Void> createChatMemberIfNotExists(ChatCommand.Chat command) {
-        List<String> subjects = List.of(command.sender(), command.receiver());
-
-        return chatMemberWriteService.saveAll(subjects, command.roomId(), command.createdAt())
-                .onErrorResume(DuplicateKeyException.class, e -> Mono.empty())
-                .then();
     }
 
     public void sendMessageToLocalSubscribers(KafkaEvent.Chat event) {
         ChatMessage model = ChatMessage.builder()
-                .type(event.type())
+                .messageType(event.messageType())
                 .roomType(event.roomType())
                 .roomId(event.roomId())
                 .receiver(event.receiver())
@@ -119,12 +112,15 @@ public class ChatService {
         }
     }
 
-    public void connectRoomSinkForUser(KafkaEvent.Chat event) {
-        chatMemberReadService.findAllByRoomId(event.roomId())
+    public Mono<Void> connectRoomSinkForUser(KafkaEvent.Chat event) {
+        return chatMemberReadService.findAllByRoomId(event.roomId())
                 .map(ChatMemberEntity::getSubject)
                 .filter(userSinks::containsKey)
                 .flatMap(subject -> connectRoomToUser(event.roomId(), userSinks.get(subject)))
-                .subscribe(null, error -> System.out.println("RoomSink 연결 오류: " + error.getMessage()));
+                .then();
     }
 
+    public Mono<Void> saveChatMessage(KafkaEvent.Save event) {
+        return chatWriteService.save(event);
+    }
 }

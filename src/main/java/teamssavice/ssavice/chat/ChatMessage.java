@@ -1,11 +1,10 @@
-package teamssavice.ssavice.chat.entity;
+package teamssavice.ssavice.chat;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import teamssavice.ssavice.chat.constants.MessageType;
-import teamssavice.ssavice.room.constants.RoomType;
+import teamssavice.ssavice.room.RoomType;
 
 import java.time.LocalDateTime;
 
@@ -14,7 +13,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ChatMessage {
-    private MessageType type;
+    private MessageType messageType;
     private RoomType roomType;
     private String roomId;
     private String receiver; // roomType이 DM일 때만 receiver 존재

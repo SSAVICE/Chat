@@ -1,4 +1,4 @@
-package teamssavice.ssavice.chatmember.entity;
+package teamssavice.ssavice.chat.entity;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -8,30 +8,35 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
+import teamssavice.ssavice.chat.MessageType;
+import teamssavice.ssavice.room.RoomType;
 
 import java.time.LocalDateTime;
 
-@Table("chat_member")
+@Table("chat_message")
 @Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ChatMemberEntity {
+public class ChatMessageEntity {
     @Id
     private Long id;
 
     @NotBlank
+    private MessageType messageType;
+    @NotBlank
+    private RoomType roomType;
+    @NotBlank
     private String roomId;
 
-    @NotNull
-    private String subject;
+    private String receiver;
+    @NotBlank
+    private String sender;
+
+    private String message;
+
+    private Long serviceId;
 
     @NotNull
-    private LocalDateTime joinedAt;
-
-    @Builder.Default
-    private boolean isLeft = false;
-
-    @NotNull
-    private Long lastReadMsgId;
+    private LocalDateTime createdAt;
 }

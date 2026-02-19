@@ -1,14 +1,14 @@
 package teamssavice.ssavice.chat.websocket.dto;
 
 import lombok.Builder;
-import teamssavice.ssavice.chat.constants.MessageType;
-import teamssavice.ssavice.room.constants.RoomType;
+import teamssavice.ssavice.chat.MessageType;
+import teamssavice.ssavice.room.RoomType;
 
 public class WebSocketRequest {
 
     @Builder
     public record Chat(
-            MessageType type,
+            MessageType messageType,
             RoomType roomType,
             String roomId,
             String receiver,

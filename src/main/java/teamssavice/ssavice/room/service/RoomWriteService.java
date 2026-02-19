@@ -1,9 +1,10 @@
 package teamssavice.ssavice.room.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
-import teamssavice.ssavice.room.constants.RoomType;
+import teamssavice.ssavice.room.RoomType;
 import teamssavice.ssavice.room.entity.RoomEntity;
 import teamssavice.ssavice.room.infrastructure.repository.RoomRepository;
 
@@ -14,14 +15,17 @@ import java.time.LocalDateTime;
 public class RoomWriteService {
     private final RoomRepository roomRepository;
 
-    public Mono<RoomEntity> save(String roomId, LocalDateTime createdAt) {
+    public Mono<RoomEntity> save(String roomId, String roomName, LocalDateTime createdAt) {
         RoomEntity entity = RoomEntity.builder()
                 .roomId(roomId)
-                .roomName("")
+                .roomName(roomName)
                 .type(RoomType.DM)
                 .createdAt(createdAt)
                 .build();
 
-        return roomRepository.save(entity);
+        return roomRepository.save(entity)
+                .onErrorResume(DuplicateKeyException.class, e -> Mono.empty());
     }
+
+
 }

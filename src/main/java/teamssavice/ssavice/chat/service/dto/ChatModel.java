@@ -1,7 +1,7 @@
 package teamssavice.ssavice.chat.service.dto;
 
 import lombok.Builder;
-import teamssavice.ssavice.room.constants.RoomType;
+import teamssavice.ssavice.room.RoomType;
 import teamssavice.ssavice.room.entity.RoomEntity;
 
 public class ChatModel {
@@ -12,13 +12,6 @@ public class ChatModel {
             String roomName,
             RoomType roomType
     ) {
-        public static ChatModel.Room from(RoomEntity entity) {
-            return Room.builder()
-                    .roomId(entity.getRoomId())
-                    .roomName(entity.getRoomName())
-                    .roomType(entity.getType())
-                    .build();
-        }
 
         public static ChatModel.Room from(RoomEntity entity, String roomName) {
             return Room.builder()

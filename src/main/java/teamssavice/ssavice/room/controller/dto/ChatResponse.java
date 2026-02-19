@@ -1,7 +1,7 @@
 package teamssavice.ssavice.room.controller.dto;
 
 import lombok.Builder;
-import teamssavice.ssavice.room.constants.RoomType;
+import teamssavice.ssavice.room.RoomType;
 import teamssavice.ssavice.chat.service.dto.ChatModel;
 
 import java.util.List;

@@ -1,8 +1,8 @@
 package teamssavice.ssavice.chat.service.dto;
 
 import lombok.Builder;
-import teamssavice.ssavice.chat.constants.MessageType;
-import teamssavice.ssavice.room.constants.RoomType;
+import teamssavice.ssavice.chat.MessageType;
+import teamssavice.ssavice.room.RoomType;
 import teamssavice.ssavice.chat.websocket.dto.WebSocketRequest;
 
 import java.time.LocalDateTime;
@@ -11,7 +11,7 @@ public class ChatCommand {
 
     @Builder
     public record Chat(
-            MessageType type,
+            MessageType messageType,
             RoomType roomType,
             String roomId,
             String receiver,
@@ -22,7 +22,7 @@ public class ChatCommand {
     ) {
         public static Chat from(WebSocketRequest.Chat request) {
             return Chat.builder()
-                    .type(request.type())
+                    .messageType(request.messageType())
                     .roomType(request.roomType())
                     .roomId(RoomType.DM.equals(request.roomType()) && request.roomId().isEmpty()
                         ? generateDMRoomId(request.sender(), request.receiver())
