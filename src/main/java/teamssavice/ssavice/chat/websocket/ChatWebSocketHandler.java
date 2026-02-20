@@ -10,9 +10,11 @@ import org.springframework.web.reactive.socket.WebSocketSession;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+import teamssavice.ssavice.chat.MessageType;
 import teamssavice.ssavice.chat.service.ChatService;
 import teamssavice.ssavice.chat.service.dto.ChatCommand;
 import teamssavice.ssavice.chat.websocket.dto.WebSocketRequest;
+import teamssavice.ssavice.chatmember.service.ChatMemberService;
 
 import java.net.URI;
 
@@ -24,6 +26,7 @@ public class ChatWebSocketHandler implements WebSocketHandler {
 
     private final ObjectMapper objectMapper;
     private final ChatService chatService;
+    private final ChatMemberService chatMemberService;
 
     @Override
     public Mono<Void> handle(WebSocketSession session) {
@@ -34,13 +37,18 @@ public class ChatWebSocketHandler implements WebSocketHandler {
         Mono<Void> input = session.receive()
                 .map(WebSocketMessage::getPayloadAsText)
                 .flatMap(json ->
-                        Mono.fromCallable(() -> objectMapper.readValue(json, WebSocketRequest.Chat.class))
+                        Mono.fromCallable(() -> objectMapper.readValue(json, WebSocketRequest.class))
                                 .onErrorResume(e -> {
                                     log.warn("잘못된 JSON 수신: {}", json, e);
                                     return Mono.empty(); // 이 메시지만 drop
                                 })
-                ).map(ChatCommand.Chat::from)
-                .flatMap(chatService::sendMessage)
+                )
+                .flatMap(req -> {
+                    if(MessageType.READ.equals(req.getMessageType())) {
+                        return chatMemberService.updateLastReadMsgId(ChatCommand.Read.from(req, subject));
+                    }
+                    return chatService.sendMessage(ChatCommand.Chat.from(req, subject));
+                })
                 .doFinally(signal -> log.info("Input Flux 종료: {}", signal))
                 .then();
 

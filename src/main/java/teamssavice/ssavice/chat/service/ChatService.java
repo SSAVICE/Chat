@@ -70,7 +70,7 @@ public class ChatService {
     }
 
     public Mono<Void> sendMessage(ChatCommand.Chat command) {
-        return ensureRoomInMemory(command)
+        return createDmRoomIfNotExist(command)
                 .then(
                     Mono.when(
                         kafkaProducer.publish(kafkaProperties.chatTopic(), command.roomId(), KafkaEvent.Chat.from(command)),
@@ -80,7 +80,7 @@ public class ChatService {
                 .onErrorResume(e -> Mono.empty());
     }
 
-    public Mono<Void> ensureRoomInMemory(ChatCommand.Chat command) {
+    public Mono<Void> createDmRoomIfNotExist(ChatCommand.Chat command) {
         if(!RoomType.DM.equals(command.roomType())) return Mono.empty();
         String roomName = command.sender() + "_" + command.receiver();
 

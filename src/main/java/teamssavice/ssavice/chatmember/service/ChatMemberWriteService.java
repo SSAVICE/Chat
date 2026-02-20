@@ -29,4 +29,10 @@ public class ChatMemberWriteService {
                 .onErrorResume(DuplicateKeyException.class, e -> Mono.empty())
                 .then();
     }
+
+    public Mono<Void> updateLastReadMsgIdIfGreater(String roomId, String sender, Long lastReadMsgId) {
+        return chatMemberRepository.updateLastReadMsgIdIfGreater(roomId, sender, lastReadMsgId)
+                .doOnError(e -> System.out.println("마지막 메시지 기록 저장 실패: " + e.getMessage()))
+                .then();
+    }
 }

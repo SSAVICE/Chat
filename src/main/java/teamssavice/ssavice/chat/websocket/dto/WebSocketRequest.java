@@ -1,20 +1,18 @@
 package teamssavice.ssavice.chat.websocket.dto;
 
 import lombok.Builder;
+import lombok.Getter;
 import teamssavice.ssavice.chat.MessageType;
 import teamssavice.ssavice.room.RoomType;
 
+@Getter
+@Builder
 public class WebSocketRequest {
-
-    @Builder
-    public record Chat(
-            MessageType messageType,
-            RoomType roomType,
-            String roomId,
-            String receiver,
-            String sender,
-            String message,
-            Long serviceId
-    ) {
-    }
+    private MessageType messageType;
+    private RoomType roomType;
+    private String roomId;
+    private String receiver;
+    private String message;
+    private Long serviceId;
+    private Long lastReadMsgId;
 }

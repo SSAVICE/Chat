@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 public class KafkaEvent {
 
     @Builder
-    public record Chat(
+    public record Chat(  // 메시지 전송용
             MessageType messageType,
             RoomType roomType,
             String roomId,
@@ -45,7 +45,7 @@ public class KafkaEvent {
     }
 
     @Builder
-    public record Save(
+    public record Save( // DB 저장용
             MessageType messageType,
             RoomType roomType,
             String roomId,
