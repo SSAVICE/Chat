@@ -15,7 +15,7 @@ import java.util.List;
 public class ChatMemberWriteService {
     private final ChatMemberRepository chatMemberRepository;
 
-    public Mono<Void> saveAll(List<String> subjects, String roomId, LocalDateTime createdAt) {
+    public Mono<Void> saveAll(List<Long> subjects, String roomId, LocalDateTime createdAt) {
         List<ChatMemberEntity> members = subjects.stream()
                 .map(subject -> ChatMemberEntity.builder()
                         .roomId(roomId)
@@ -30,7 +30,7 @@ public class ChatMemberWriteService {
                 .then();
     }
 
-    public Mono<Void> updateLastReadMsgIdIfGreater(String roomId, String sender, Long lastReadMsgId) {
+    public Mono<Void> updateLastReadMsgIdIfGreater(String roomId, Long sender, Long lastReadMsgId) {
         return chatMemberRepository.updateLastReadMsgIdIfGreater(roomId, sender, lastReadMsgId)
                 .doOnError(e -> System.out.println("마지막 메시지 기록 저장 실패: " + e.getMessage()))
                 .then();

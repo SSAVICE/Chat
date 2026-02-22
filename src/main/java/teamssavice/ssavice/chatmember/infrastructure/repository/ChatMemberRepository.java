@@ -9,7 +9,7 @@ import teamssavice.ssavice.chatmember.entity.ChatMemberEntity;
 
 public interface ChatMemberRepository extends R2dbcRepository<ChatMemberEntity, Long> {
 
-    Flux<ChatMemberEntity> findAllBySubject(String subject);
+    Flux<ChatMemberEntity> findAllBySubject(Long subject);
 
     Flux<ChatMemberEntity> findAllByRoomId(String roomId);
 
@@ -18,7 +18,7 @@ public interface ChatMemberRepository extends R2dbcRepository<ChatMemberEntity, 
             "WHERE room_id = :roomId " +
             "AND subject = :sender " +
             "AND last_read_msg_id < :lastReadMsgId")
-    Mono<Integer> updateLastReadMsgIdIfGreater(String roomId, String sender, Long lastReadMsgId);
+    Mono<Integer> updateLastReadMsgIdIfGreater(String roomId, Long sender, Long lastReadMsgId);
 
-    Mono<ChatMemberEntity> findByRoomIdAndSubject(String roomId, String subject);
+    Mono<ChatMemberEntity> findByRoomIdAndSubject(String roomId, Long subject);
 }

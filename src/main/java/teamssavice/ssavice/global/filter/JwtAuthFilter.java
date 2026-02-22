@@ -1,7 +1,9 @@
 package teamssavice.ssavice.global.filter;
 
-import io.jsonwebtoken.*;
-import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.MalformedJwtException;
+import io.jsonwebtoken.UnsupportedJwtException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.server.reactive.ServerHttpRequest;
@@ -9,18 +11,14 @@ import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
+import teamssavice.ssavice.global.auth.JwtTokenProvider;
 import teamssavice.ssavice.global.constants.ErrorCode;
 import teamssavice.ssavice.global.exception.AuthenticationException;
-import teamssavice.ssavice.global.property.JwtProperties;
-
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
 
 @RequiredArgsConstructor
 public class JwtAuthFilter implements WebFilter {
     private static final String TOKEN_PREFIX = "Bearer ";
-
-    private final JwtProperties jwtProperties;
+    private final JwtTokenProvider jwtTokenProvider;
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
@@ -30,17 +28,8 @@ public class JwtAuthFilter implements WebFilter {
         }
 
         try {
-            SecretKey key = Keys.hmacShaKeyFor(jwtProperties.secretKey().getBytes(StandardCharsets.UTF_8));
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(key)
-                    .build()
-                    .parseClaimsJws(jwtToken)
-                    .getBody();
-
-            String subject = claims.getSubject();
-
-            // ws용
-            exchange.getAttributes().put("subject", subject);
+            Claims claims = jwtTokenProvider.getClaim(jwtToken);
+            Long subject = Long.parseLong(claims.getSubject());
 
             // rest용
             return chain.filter(exchange)
@@ -62,10 +51,15 @@ public class JwtAuthFilter implements WebFilter {
     private String resolveToken(ServerHttpRequest request) {
         String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
 
-        if(authHeader == null || !authHeader.startsWith(TOKEN_PREFIX)) {
-            return null;
+        if(authHeader != null && authHeader.startsWith(TOKEN_PREFIX)) {
+            return authHeader.substring(TOKEN_PREFIX.length());
         }
 
-        return authHeader.substring(TOKEN_PREFIX.length());
+        String token = request.getQueryParams().getFirst("token");
+        if(token != null && !token.isBlank()) {
+            return token;
+        }
+
+        return null;
     }
 }

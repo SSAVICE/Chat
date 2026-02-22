@@ -24,7 +24,7 @@ public class ChatMemberEntity {
     private String roomId;
 
     @NotNull
-    private String subject;
+    private Long subject;
 
     @NotNull
     private LocalDateTime joinedAt;

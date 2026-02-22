@@ -9,7 +9,6 @@ import org.springframework.web.reactive.socket.WebSocketMessage;
 import org.springframework.web.reactive.socket.WebSocketSession;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
 import teamssavice.ssavice.chat.MessageType;
 import teamssavice.ssavice.chat.service.ChatService;
 import teamssavice.ssavice.chat.service.dto.ChatCommand;
@@ -28,41 +27,42 @@ public class ChatWebSocketHandler implements WebSocketHandler {
 
     @Override
     public Mono<Void> handle(WebSocketSession session) {
-        // 1. URL에서 sender 추출 (예: ws://.../chat?sender=철수)
-        String subject = (String) session.getAttributes().get("subject");
+        Mono<Long> subjectMono = Mono.deferContextual(ctx ->
+                Mono.just(ctx.get("subject"))
+        );
+        return subjectMono.flatMap(subject -> {
+            // 1. 입력 처리 (Client -> Server)
+            Mono<Void> input = session.receive()
+                    .map(WebSocketMessage::getPayloadAsText)
+                    .flatMap(json ->
+                            Mono.fromCallable(() -> objectMapper.readValue(json, WebSocketRequest.class))
+                                    .onErrorResume(e -> {
+                                        log.warn("잘못된 JSON 수신: {} {}", json, e.getMessage());
+                                        return Mono.empty(); // 이 메시지만 drop
+                                    })
+                    )
+                    .flatMap(req -> {
+                        if(MessageType.READ.equals(req.getMessageType())) {
+                            return chatMemberService.updateLastReadMsgId(ChatCommand.Read.from(req, subject));
+                        }
+                        return chatService.sendMessage(ChatCommand.Chat.from(req, subject));
+                    })
+                    .doFinally(signal -> log.info("Input Flux 종료: {}", signal))
+                    .then();
 
-        // 1. 입력 처리 (Client -> Server)
-        Mono<Void> input = session.receive()
-                .map(WebSocketMessage::getPayloadAsText)
-                .flatMap(json ->
-                        Mono.fromCallable(() -> objectMapper.readValue(json, WebSocketRequest.class))
-                                .onErrorResume(e -> {
-                                    log.warn("잘못된 JSON 수신: {}", json, e);
-                                    return Mono.empty(); // 이 메시지만 drop
-                                })
-                )
-                .flatMap(req -> {
-                    if(MessageType.READ.equals(req.getMessageType())) {
-                        return chatMemberService.updateLastReadMsgId(ChatCommand.Read.from(req, subject));
-                    }
-                    return chatService.sendMessage(ChatCommand.Chat.from(req, subject));
-                })
-                .doFinally(signal -> log.info("Input Flux 종료: {}", signal))
-                .then();
+            // 2. 출력 처리: (Server -> Client)
+            Flux<WebSocketMessage> output = chatService.registerUser(subject)
+                    .flatMap(message ->
+                            Mono.<String>fromCallable(() -> objectMapper.writeValueAsString(message))
+                                    .map(session::textMessage)
+                                    .onErrorResume(e -> {
+                                        log.error("Kafka 전송 실패 roomId={}", message.getRoomId(), e);
+                                        return Mono.empty();
+                                    })
+                    )
+                    .doFinally(signal -> log.info("output Flux 종료: {}", signal));
 
-        // 2. 출력 처리: (Server -> Client)
-        Flux<WebSocketMessage> output = chatService.registerUser(subject)
-                .flatMap(message ->
-                        Mono.fromCallable(() -> objectMapper.writeValueAsString(message))
-                                .subscribeOn(Schedulers.boundedElastic())
-                                .map(session::textMessage)
-                                .onErrorResume(e -> {
-                                    log.error("Kafka 전송 실패 roomId={}", message.getRoomId(), e);
-                                    return Mono.empty();
-                                })
-                )
-                .doFinally(signal -> log.info("output Flux 종료: {}", signal)) ;
-
-        return Mono.zip(input, session.send(output)).then();
+            return Mono.when(input, session.send(output));
+        });
     }
 }

@@ -6,9 +6,10 @@ import reactor.core.publisher.Mono;
 import teamssavice.ssavice.chat.service.dto.ChatModel;
 import teamssavice.ssavice.chatmember.entity.ChatMemberEntity;
 import teamssavice.ssavice.chatmember.service.ChatMemberReadService;
-import teamssavice.ssavice.company.service.CompanyReadService;
-import teamssavice.ssavice.global.constants.Role;
+import teamssavice.ssavice.global.constants.ErrorCode;
 import teamssavice.ssavice.global.dto.Auth;
+import teamssavice.ssavice.global.exception.DataNotFoundException;
+import teamssavice.ssavice.global.exception.ForbiddenException;
 import teamssavice.ssavice.room.RoomType;
 import teamssavice.ssavice.room.entity.RoomEntity;
 import teamssavice.ssavice.user.service.UserReadService;
@@ -18,7 +19,6 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class RoomService {
-    private final CompanyReadService companyReadService;
     private final UserReadService userReadService;
     private final RoomReadService roomReadService;
     private final ChatMemberReadService chatMemberReadService;
@@ -38,15 +38,22 @@ public class RoomService {
     private Mono<ChatModel.Room> getOppositeName(RoomEntity room, Auth auth) {
         if(RoomType.GROUP.equals(room.getType())) return Mono.just(ChatModel.Room.from(room, room.getRoomName()));
 
-        String oppSubject = room.getOppSubject(auth.subject());
-        Auth oppAuth = Auth.of(oppSubject);
+        String roomName = room.getRoomName();
+        String[] parts = roomName.split("_");
+        if(parts.length != 2) return Mono.error(new DataNotFoundException(ErrorCode.ROOM_NOT_FOUND));
 
-        if(oppAuth.canAccess(Role.USER)) {
-            return userReadService.findById(oppAuth.id())
-                    .map(user -> ChatModel.Room.from(room, user.getName()));
-        }
+        long id1 = Long.parseLong(parts[0]);
+        long id2 = Long.parseLong(parts[1]);
 
-        return companyReadService.findById(oppAuth.id())
-                .map(company -> ChatModel.Room.from(room, company.getCompanyName()));
+        long myId = auth.subject();
+
+        long oppSubject;
+        if (myId == id1) oppSubject = id2;
+        else if (myId == id2) oppSubject = id1;
+        else return Mono.error(new ForbiddenException(ErrorCode.FORBIDDEN));
+
+        return userReadService.findById(oppSubject)
+                .switchIfEmpty(Mono.error(new DataNotFoundException(ErrorCode.ROOM_NOT_FOUND)))
+                .map(user -> ChatModel.Room.from(room, user.getName()));
     }
 }

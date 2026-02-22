@@ -34,8 +34,11 @@ public class RoomEntity {
 
     private Long lastServiceId;
 
-    public String getOppSubject(String subject) {
+    public Long getOppSubject(Long subject) {
         String[] arr = roomName.split("_");
-        return subject.equals(arr[0]) ? arr[1] : arr[0];
+        long id1 = Long.parseLong(arr[0]);
+        long id2 = Long.parseLong(arr[1]);
+
+        return subject == id1 ? id2 : id1;
     }
 }

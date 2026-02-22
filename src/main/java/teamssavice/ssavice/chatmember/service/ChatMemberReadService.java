@@ -14,7 +14,7 @@ import teamssavice.ssavice.global.exception.DataNotFoundException;
 public class ChatMemberReadService {
     private final ChatMemberRepository chatMemberRepository;
 
-    public Flux<ChatMemberEntity> findAllBySubject(String subject) {
+    public Flux<ChatMemberEntity> findAllBySubject(Long subject) {
         return chatMemberRepository.findAllBySubject(subject);
     }
 

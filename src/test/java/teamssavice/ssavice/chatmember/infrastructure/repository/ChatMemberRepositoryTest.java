@@ -24,8 +24,8 @@ class ChatMemberRepositoryTest {
     @DisplayName("lastReadMsgId가 DB에 저장된 값보다 클 때 업데이트 테스트")
     void updateLastReadMsgIdSuccessTest() {
         // given
-        String roomId = "user:1_user:2";
-        String subject = "user:1";
+        String roomId = "1_2";
+        Long subject = 1L;
         Long lastReadMsgId = 11L;
         ChatMemberEntity entity = ChatMemberEntity.builder()
                 .roomId(roomId)
@@ -52,8 +52,8 @@ class ChatMemberRepositoryTest {
     @DisplayName("lastReadMsgId가 DB에 저장된 값보다 작으면 무시 테스트")
     void updateLastReadMsgIdIgnoreTest() {
         // given
-        String roomId = "user:1_user:2";
-        String subject = "user:1";
+        String roomId = "1_2";
+        Long subject = 1L;
         Long lastReadMsgId = 9L;
         Long originalReadMsgId = 10L;
         ChatMemberEntity entity = ChatMemberEntity.builder()

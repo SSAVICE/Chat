@@ -77,6 +77,15 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(ForbiddenException.class)
+    public Mono<ResponseEntity<ProblemDetail>> forbiddenException(ForbiddenException e) {
+        ProblemDetail problemDetail = setCustomProblemDetail(e);
+        return Mono.just(ResponseEntity
+                .status(problemDetail.getStatus())
+                .body(problemDetail)
+        );
+    }
+
     @ExceptionHandler(Exception.class)
     public Mono<ResponseEntity<ProblemDetail>> unexpectedException(Exception e) {
         ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.INTERNAL_SERVER_ERROR);

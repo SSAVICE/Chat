@@ -14,17 +14,17 @@ public class ChatCommand {
             MessageType messageType,
             RoomType roomType,
             String roomId,
-            String receiver,
-            String sender,
+            Long receiver,
+            Long sender,
             String message,
             Long serviceId,
             LocalDateTime createdAt
     ) {
-        public static Chat from(WebSocketRequest request, String sender) {
+        public static Chat from(WebSocketRequest request, Long sender) {
             return Chat.builder()
                     .messageType(request.getMessageType())
                     .roomType(request.getRoomType())
-                    .roomId(RoomType.DM.equals(request.getRoomType()) && request.getRoomId().isEmpty()
+                    .roomId(RoomType.DM.equals(request.getRoomType())
                         ? generateDMRoomId(sender, request.getReceiver())
                         : request.getRoomId()
                     ).receiver(request.getReceiver())
@@ -35,7 +35,7 @@ public class ChatCommand {
                     .build();
         }
 
-        public static String generateDMRoomId(String sender, String receiver) {
+        public static String generateDMRoomId(Long sender, Long receiver) {
             return sender.compareTo(receiver) < 0 ? sender + "_" + receiver : receiver + "_" + sender;
         }
     }
@@ -44,10 +44,10 @@ public class ChatCommand {
     public record Read(
             MessageType messageType,
             String roomId,
-            String sender,
+            Long sender,
             Long lastReadMsgId
     ) {
-        public static Read from(WebSocketRequest request, String sender) {
+        public static Read from(WebSocketRequest request, Long sender) {
             return Read.builder()
                     .messageType(request.getMessageType())
                     .roomId(request.getRoomId())

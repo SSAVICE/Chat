@@ -16,8 +16,8 @@ public class ChatMessage {
     private MessageType messageType;
     private RoomType roomType;
     private String roomId;
-    private String receiver; // roomType이 DM일 때만 receiver 존재
-    private String sender;
+    private Long receiver; // roomType이 DM일 때만 receiver 존재
+    private Long sender;
     private String message;
     private Long serviceId;
     private LocalDateTime createdAt;

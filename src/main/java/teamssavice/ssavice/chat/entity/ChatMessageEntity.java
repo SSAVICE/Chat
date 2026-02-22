@@ -29,9 +29,9 @@ public class ChatMessageEntity {
     @NotBlank
     private String roomId;
 
-    private String receiver;
-    @NotBlank
-    private String sender;
+    private Long receiver;
+    @NotNull
+    private Long sender;
 
     private String message;
 

@@ -4,16 +4,26 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
+import teamssavice.ssavice.global.property.KafkaProperties;
+import teamssavice.ssavice.kafka.event.KafkaEvent;
 
 @Component
 @RequiredArgsConstructor
 public class KafkaProducer {
 
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final KafkaProperties kafkaProperties;
+    private final KafkaTemplate<String, KafkaEvent.Chat> kafkaChatTemplate;
+    private final KafkaTemplate<String, KafkaEvent.Save> kafkaSaveTemplate;
 
-    public Mono<Void> publish(String topic, String key, Object payload) {
+    public Mono<Void> publish(String key, KafkaEvent.Chat payload) {
         return Mono.fromFuture(
-                kafkaTemplate.send(topic, key, payload)
+                kafkaChatTemplate.send(kafkaProperties.chatTopic(), key, payload)
+        ).then();
+    }
+
+    public Mono<Void> publish(String key, KafkaEvent.Save payload) {
+        return Mono.fromFuture(
+                kafkaSaveTemplate.send(kafkaProperties.saveTopic(), key, payload)
         ).then();
     }
 }

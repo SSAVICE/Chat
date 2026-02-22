@@ -7,11 +7,11 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Schedulers;
 import teamssavice.ssavice.chat.ChatMessage;
+import teamssavice.ssavice.room.infrastructure.RoomChannel;
 import teamssavice.ssavice.chat.service.dto.ChatCommand;
 import teamssavice.ssavice.chatmember.entity.ChatMemberEntity;
 import teamssavice.ssavice.chatmember.service.ChatMemberReadService;
 import teamssavice.ssavice.chatmember.service.ChatMemberWriteService;
-import teamssavice.ssavice.global.property.KafkaProperties;
 import teamssavice.ssavice.kafka.KafkaProducer;
 import teamssavice.ssavice.kafka.event.KafkaEvent;
 import teamssavice.ssavice.room.RoomType;
@@ -26,8 +26,6 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequiredArgsConstructor
 public class ChatService {
 
-    private final KafkaProperties kafkaProperties;
-
     private final ChatWriteService chatWriteService;
     private final KafkaProducer kafkaProducer;
     private final RoomWriteService roomWriteService;
@@ -35,11 +33,10 @@ public class ChatService {
     private final ChatMemberWriteService chatMemberWriteService;
     private final ChatMemberReadService chatMemberReadService;
 
-    private final Map<String, Sinks.Many<ChatMessage>> userSinks = new ConcurrentHashMap<>();
-    private final Map<String, Sinks.Many<ChatMessage>> roomSinks = new ConcurrentHashMap<>();
+    private final Map<Long, Sinks.Many<ChatMessage>> userSinks = new ConcurrentHashMap<>();
+    private final Map<String, RoomChannel> rooms = new ConcurrentHashMap<>();
 
-    // 사용자 접속 시 개인 우편함 생성
-    public Flux<ChatMessage> registerUser(String subject) {
+    public Flux<ChatMessage> registerUser(Long subject) {
         Sinks.Many<ChatMessage> userSink = Sinks.many().multicast().onBackpressureBuffer();
         userSinks.put(subject, userSink);
 
@@ -50,31 +47,31 @@ public class ChatService {
                 .map(ChatMemberEntity::getRoomId)
                 .flatMap(roomId -> connectRoomToUser(roomId, userSink))
                 .subscribeOn(Schedulers.boundedElastic())
-                .doOnError(e -> System.out.println("Room 연결 실패" + e.getMessage()))
-                .subscribe();
+                .subscribe(
+                        null,
+                        e -> System.out.println("Room 연결 실패: " + e.getMessage())
+                );
 
-         return output;
+        return output;
     }
 
     private Mono<Void> connectRoomToUser(String roomId, Sinks.Many<ChatMessage> userSink) {
-        Sinks.Many<ChatMessage> roomSink = roomSinks.computeIfAbsent(roomId, id -> Sinks.many().multicast().onBackpressureBuffer());
+        RoomChannel room = rooms.computeIfAbsent(roomId, id -> new RoomChannel(id, rooms));
+        Flux<ChatMessage> roomFlux = room.getFlux();
 
-        return roomSink.asFlux()
+        return roomFlux
                 .takeUntilOther(userSink.asFlux().ignoreElements())
                 .doOnNext(userSink::tryEmitNext)
                 .doOnError(sig -> System.out.println(sig))
-                .doFinally(sig -> {
-                    if (roomSink.currentSubscriberCount() == 0)
-                        roomSinks.remove(roomId);
-                }).then();
+                .then();
     }
 
     public Mono<Void> sendMessage(ChatCommand.Chat command) {
         return createDmRoomIfNotExist(command)
                 .then(
                     Mono.when(
-                        kafkaProducer.publish(kafkaProperties.chatTopic(), command.roomId(), KafkaEvent.Chat.from(command)),
-                        kafkaProducer.publish(kafkaProperties.saveTopic(), command.roomId(), KafkaEvent.Save.from(command))
+                        kafkaProducer.publish(command.roomId(), KafkaEvent.Chat.from(command)),
+                        kafkaProducer.publish(command.roomId(), KafkaEvent.Save.from(command))
                     )
                 ).doOnError(e -> System.out.println("Kafka 전송 실패: " + e.getMessage()))
                 .onErrorResume(e -> Mono.empty());
@@ -89,7 +86,7 @@ public class ChatService {
                     if (exist) return Mono.empty();
                     return roomWriteService.save(command.roomId(), roomName, command.createdAt())
                             .then(chatMemberWriteService.saveAll(List.of(command.sender(), command.receiver()), command.roomId(), command.createdAt()))
-                            .then(kafkaProducer.publish(kafkaProperties.chatTopic(), command.roomId(), KafkaEvent.Chat.createEvent(command)));
+                            .then(kafkaProducer.publish(command.roomId(), KafkaEvent.Chat.createEvent(command)));
                 });
     }
 
@@ -106,9 +103,9 @@ public class ChatService {
                 .build();
 
         String roomId = event.roomId();
-        Sinks.Many<ChatMessage> roomSink = roomSinks.get(roomId);
-        if(roomSink != null) {
-            roomSink.tryEmitNext(model);
+        RoomChannel room = rooms.get(roomId);
+        if(room != null) {
+            room.emit(model);
         }
     }
 

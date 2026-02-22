@@ -23,7 +23,7 @@ public class KafkaConsumer {
         if (MessageType.CREATE.equals(event.messageType()) && RoomType.DM.equals(event.roomType())) {
             chatService.connectRoomSinkForUser(event)
                     .doOnError(e -> System.out.println("RoomSink 연결 오류: " + e.getMessage()))
-                    .block();
+                    .subscribe();
             return;
         }
         chatService.sendMessageToLocalSubscribers(event);

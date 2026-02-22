@@ -11,7 +11,7 @@ public class WebSocketRequest {
     private MessageType messageType;
     private RoomType roomType;
     private String roomId;
-    private String receiver;
+    private Long receiver;
     private String message;
     private Long serviceId;
     private Long lastReadMsgId;
