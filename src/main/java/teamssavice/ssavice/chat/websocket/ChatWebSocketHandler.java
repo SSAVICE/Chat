@@ -16,8 +16,6 @@ import teamssavice.ssavice.chat.service.dto.ChatCommand;
 import teamssavice.ssavice.chat.websocket.dto.WebSocketRequest;
 import teamssavice.ssavice.chatmember.service.ChatMemberService;
 
-import java.net.URI;
-
 
 @Slf4j
 @Component
@@ -31,7 +29,7 @@ public class ChatWebSocketHandler implements WebSocketHandler {
     @Override
     public Mono<Void> handle(WebSocketSession session) {
         // 1. URL에서 sender 추출 (예: ws://.../chat?sender=철수)
-        String subject = getSenderFromSession(session);
+        String subject = (String) session.getAttributes().get("subject");
 
         // 1. 입력 처리 (Client -> Server)
         Mono<Void> input = session.receive()
@@ -66,22 +64,5 @@ public class ChatWebSocketHandler implements WebSocketHandler {
                 .doFinally(signal -> log.info("output Flux 종료: {}", signal)) ;
 
         return Mono.zip(input, session.send(output)).then();
-    }
-
-    // URL 쿼리 파라미터 파싱 헬퍼 메소드
-    private String getSenderFromSession(WebSocketSession session) {
-        URI uri = session.getHandshakeInfo().getUri();
-        String query = uri.getQuery(); // "sender=철수" 형태
-
-        if (query != null && query.contains("sender=")) {
-            String[] params = query.split("&");
-            for (String param : params) {
-                String[] keyValue = param.split("=");
-                if (keyValue.length == 2 && "sender".equals(keyValue[0])) {
-                    return keyValue[1];
-                }
-            }
-        }
-        return null;
     }
 }

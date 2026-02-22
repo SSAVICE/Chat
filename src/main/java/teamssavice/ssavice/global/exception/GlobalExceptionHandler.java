@@ -68,6 +68,15 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(AuthenticationException.class)
+    public Mono<ResponseEntity<ProblemDetail>> authenticationException(AuthenticationException e) {
+        ProblemDetail problemDetail = setCustomProblemDetail(e);
+        return Mono.just(ResponseEntity
+                .status(problemDetail.getStatus())
+                .body(problemDetail)
+        );
+    }
+
     @ExceptionHandler(Exception.class)
     public Mono<ResponseEntity<ProblemDetail>> unexpectedException(Exception e) {
         ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.INTERNAL_SERVER_ERROR);
