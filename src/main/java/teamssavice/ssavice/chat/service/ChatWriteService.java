@@ -21,7 +21,6 @@ public class ChatWriteService {
                 .receiver(command.receiver())
                 .sender(command.sender())
                 .message(command.message())
-                .serviceId(command.serviceId())
                 .createdAt(command.createdAt())
                 .build();
 

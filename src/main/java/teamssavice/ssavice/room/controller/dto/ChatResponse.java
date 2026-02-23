@@ -4,6 +4,7 @@ import lombok.Builder;
 import teamssavice.ssavice.room.RoomType;
 import teamssavice.ssavice.chat.service.dto.ChatModel;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public class ChatResponse {
@@ -23,14 +24,40 @@ public class ChatResponse {
     public record Room(
             String roomId,
             String roomName,
-            RoomType roomType
+            RoomType roomType,
+            Long serviceId,
+            Long lastMsgId, // 마지막 채팅 Id
+            Long unReadMsgCnt, // 안읽은 메시지 수
+            String lastMessage, // 마지막 메시지
+            int memberCnt,
+            LocalDateTime lastMsgAt // // 마지막 메시지 시간
     ) {
         public static Room from(ChatModel.Room model) {
             return Room.builder()
                     .roomId(model.roomId())
                     .roomName(model.roomName())
                     .roomType(model.roomType())
+                    .serviceId(model.serviceId())
+                    .lastMsgId(model.lastMsgId())
+                    .unReadMsgCnt(model.unReadMsgCnt())
+                    .lastMessage(model.lastMessage())
+                    .memberCnt(model.memberCnt())
+                    .lastMsgAt(model.lastMsgAt())
                     .build();
         }
+    }
+
+    @Builder
+    public record Detail(
+            String roomId,
+            String roomName,
+            RoomType roomType,
+            Long serviceId,
+            Long[] lastReadMsgIds,
+            Long[] memberIds,
+            String[] memberNames,
+            String[] profileImgUrls
+    ) {
+
     }
 }

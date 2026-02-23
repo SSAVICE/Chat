@@ -2,7 +2,10 @@ package teamssavice.ssavice.room.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Mono;
+import teamssavice.ssavice.chat.entity.ChatMessageEntity;
+import teamssavice.ssavice.chat.service.ChatReadService;
 import teamssavice.ssavice.chat.service.dto.ChatModel;
 import teamssavice.ssavice.chatmember.entity.ChatMemberEntity;
 import teamssavice.ssavice.chatmember.service.ChatMemberReadService;
@@ -12,24 +15,68 @@ import teamssavice.ssavice.global.exception.DataNotFoundException;
 import teamssavice.ssavice.global.exception.ForbiddenException;
 import teamssavice.ssavice.room.RoomType;
 import teamssavice.ssavice.room.entity.RoomEntity;
+import teamssavice.ssavice.room.service.dto.RoomQueryResult;
 import teamssavice.ssavice.user.service.UserReadService;
 
-import java.util.List;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
 public class RoomService {
+    private final ChatReadService chatReadService;
     private final UserReadService userReadService;
     private final RoomReadService roomReadService;
     private final ChatMemberReadService chatMemberReadService;
 
+    @Transactional(readOnly = true)
     public Mono<List<ChatModel.Room>> findAllRooms(Auth auth) {
-        return chatMemberReadService.findAllBySubject(auth.subject())
-                .map(ChatMemberEntity::getRoomId)
-                .flatMap(roomId -> findByRoomId(roomId, auth))
-                .collectList();
+
+        return getMyMemberMap(auth.subject())
+                .flatMap(myMemberMap -> {
+                    List<String> roomIds = new ArrayList<>(myMemberMap.keySet());
+                    if (myMemberMap.isEmpty()) return Mono.just(Collections.emptyList());
+
+                    return getRoomsWithDependencies(roomIds)
+                            .map(data -> assembleRooms(data, myMemberMap));
+                });
     }
 
+    private Mono<RoomQueryResult> getRoomsWithDependencies(List<String> roomIds) {
+
+        return roomReadService.findAllByRoomIdIn(roomIds)
+                .collectList()
+                .flatMap(rooms -> {
+                    List<Long> lastMsgIds = rooms.stream().map(RoomEntity::getLastMsgId).toList();
+
+                    return Mono.zip(
+                            Mono.just(rooms),
+                            chatMemberReadService.findAllByRoomIdIn(roomIds).collectMultimap(ChatMemberEntity::getRoomId),
+                            chatReadService.findAllByMessageIdIn(lastMsgIds).collectMap(ChatMessageEntity::getRoomId)
+                    );
+                })
+                .map(tuple -> new RoomQueryResult(tuple.getT1(), tuple.getT2(), tuple.getT3()));
+    }
+
+    private List<ChatModel.Room> assembleRooms(
+            RoomQueryResult data,
+            Map<String, ChatMemberEntity> myMemberMap
+    ) {
+        return data.rooms().stream().map(room -> {
+            Collection<ChatMemberEntity> members = data.memberMap().getOrDefault(room.getRoomId(), List.of());
+            ChatMessageEntity lastMessage = data.lastMessageMap().get(room.getRoomId());
+            Long lastReadMsgId = myMemberMap.get(room.getRoomId()).getLastReadMsgId();
+
+            return ChatModel.Room.of(room, lastMessage, members.size(), lastReadMsgId);
+        }).toList();
+    }
+
+
+    private Mono<Map<String, ChatMemberEntity>> getMyMemberMap(Long subject) {
+        return chatMemberReadService.findAllBySubject(subject)
+                .collectMap(ChatMemberEntity::getRoomId);
+    }
+
+    @Transactional(readOnly = true)
     public Mono<ChatModel.Room> findByRoomId(String roomId, Auth auth) {
         return roomReadService.findByRoomId(roomId)
                 .flatMap(room -> getOppositeName(room, auth));

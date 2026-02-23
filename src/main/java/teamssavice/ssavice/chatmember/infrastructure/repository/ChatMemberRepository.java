@@ -7,6 +7,8 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import teamssavice.ssavice.chatmember.entity.ChatMemberEntity;
 
+import java.util.List;
+
 public interface ChatMemberRepository extends R2dbcRepository<ChatMemberEntity, Long> {
 
     Flux<ChatMemberEntity> findAllBySubject(Long subject);
@@ -21,4 +23,6 @@ public interface ChatMemberRepository extends R2dbcRepository<ChatMemberEntity, 
     Mono<Integer> updateLastReadMsgIdIfGreater(String roomId, Long sender, Long lastReadMsgId);
 
     Mono<ChatMemberEntity> findByRoomIdAndSubject(String roomId, Long subject);
+
+    Flux<ChatMemberEntity> findAllByRoomIdIn(List<String> roomIds);
 }

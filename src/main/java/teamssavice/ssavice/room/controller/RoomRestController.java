@@ -32,14 +32,14 @@ public class RoomRestController {
     }
 
     // 방 정보 반환
-    @GetMapping("/{room-id}")
-    public Mono<ResponseEntity<ChatResponse.Room>> getRoomByRoomId(
-            @PathVariable("room-id") @NotBlank String roomId,
-            @CurrentAuth Auth auth
-    ) {
-        return roomService.findByRoomId(roomId, auth)
-                .map(ChatResponse.Room::from)
-                .map(ResponseEntity::ok)
-                .defaultIfEmpty(ResponseEntity.notFound().build());
-    }
+//    @GetMapping("/{room-id}")
+//    public Mono<ResponseEntity<ChatResponse.Detail>> getRoomByRoomId(
+//            @PathVariable("room-id") @NotBlank String roomId,
+//            @CurrentAuth Auth auth
+//    ) {
+//        return roomService.findByRoomId(roomId, auth)
+//                .map(ChatResponse.Room::from)
+//                .map(ResponseEntity::ok)
+//                .defaultIfEmpty(ResponseEntity.notFound().build());
+//    }
 }

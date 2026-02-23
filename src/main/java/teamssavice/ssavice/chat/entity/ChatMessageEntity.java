@@ -38,8 +38,6 @@ public class ChatMessageEntity {
 
     private String message;
 
-    private Long serviceId;
-
     @NotNull
     private LocalDateTime createdAt;
 }

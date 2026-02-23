@@ -9,6 +9,8 @@ import teamssavice.ssavice.chatmember.infrastructure.repository.ChatMemberReposi
 import teamssavice.ssavice.global.constants.ErrorCode;
 import teamssavice.ssavice.global.exception.DataNotFoundException;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class ChatMemberReadService {
@@ -21,5 +23,9 @@ public class ChatMemberReadService {
     public Flux<ChatMemberEntity> findAllByRoomId(String roomId) {
         return chatMemberRepository.findAllByRoomId(roomId)
                 .switchIfEmpty(Mono.error(new DataNotFoundException(ErrorCode.ROOM_NOT_FOUND)));
+    }
+
+    public Flux<ChatMemberEntity> findAllByRoomIdIn(List<String> roomIds) {
+        return chatMemberRepository.findAllByRoomIdIn(roomIds);
     }
 }

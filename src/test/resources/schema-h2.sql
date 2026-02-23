@@ -4,7 +4,8 @@ CREATE TABLE IF NOT EXISTS room (
     room_name VARCHAR(255) NOT NULL,      -- String roomName
     type VARCHAR(20) NOT NULL,            -- Enum RoomType (문자열로 저장)
     created_at TIMESTAMP NOT NULL,        -- createdAt
-    last_service_id BIGINT                -- Long lastServiceId
+    last_service_id BIGINT,               -- Long lastServiceId
+    last_msg_id BIGINT                   -- Long lastMsgId
     );
 
 CREATE TABLE IF NOT EXISTS chat_member (
@@ -20,6 +21,7 @@ CREATE TABLE IF NOT EXISTS chat_member (
 
 CREATE TABLE IF NOT EXISTS chat_message (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,   -- @Id Long id
+    message_id BIGINT NOT NULL,
     room_type VARCHAR(20) NOT NULL,         -- Enum RoomType (문자열로 저장)
     message_type VARCHAR(20) NOT NULL,      -- Enum MessageType (문자열로 저장)
     room_id VARCHAR(255) NOT NULL,          -- String roomId
