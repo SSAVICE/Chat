@@ -4,9 +4,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import teamssavice.ssavice.chat.MessageType;
+import teamssavice.ssavice.chat.service.ChatService;
 import teamssavice.ssavice.kafka.event.KafkaEvent;
 import teamssavice.ssavice.room.RoomType;
-import teamssavice.ssavice.chat.service.ChatService;
 
 @Component
 @RequiredArgsConstructor
@@ -37,8 +37,7 @@ public class KafkaConsumer {
             groupId = "chat-server-save-group"
     )
     public void listen(KafkaEvent.Save event) {
-        chatService.save(event)
-                .doOnError(e -> System.out.println("메시지 저장 실패: " + e.getMessage()))
+        chatService.saveMessageAndUpdateRoom(event)
                 .block();
     }
 }

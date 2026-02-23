@@ -22,6 +22,9 @@ public class ChatMessageEntity {
     @Id
     private Long id;
 
+    @NotNull
+    private Long messageId;
+
     @NotBlank
     private MessageType messageType;
     @NotBlank

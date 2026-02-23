@@ -33,4 +33,7 @@ public class RoomEntity {
     private LocalDateTime createdAt;
 
     private Long lastServiceId;
+
+    @Builder.Default
+    private Long lastMsgId = 0L;
 }

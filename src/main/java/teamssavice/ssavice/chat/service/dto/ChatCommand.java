@@ -11,6 +11,7 @@ public class ChatCommand {
 
     @Builder
     public record Chat(
+            Long messageId,
             MessageType messageType,
             RoomType roomType,
             String roomId,

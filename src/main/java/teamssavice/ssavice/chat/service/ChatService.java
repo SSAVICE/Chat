@@ -2,19 +2,21 @@ package teamssavice.ssavice.chat.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Schedulers;
 import teamssavice.ssavice.chat.ChatMessage;
-import teamssavice.ssavice.room.infrastructure.RoomChannel;
 import teamssavice.ssavice.chat.service.dto.ChatCommand;
 import teamssavice.ssavice.chatmember.entity.ChatMemberEntity;
 import teamssavice.ssavice.chatmember.service.ChatMemberReadService;
 import teamssavice.ssavice.chatmember.service.ChatMemberWriteService;
 import teamssavice.ssavice.kafka.KafkaProducer;
 import teamssavice.ssavice.kafka.event.KafkaEvent;
+import teamssavice.ssavice.redis.MessageIdGenerator;
 import teamssavice.ssavice.room.RoomType;
+import teamssavice.ssavice.room.infrastructure.RoomChannel;
 import teamssavice.ssavice.room.service.RoomReadService;
 import teamssavice.ssavice.room.service.RoomWriteService;
 
@@ -26,6 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequiredArgsConstructor
 public class ChatService {
 
+    private final MessageIdGenerator messageIdGenerator;
     private final ChatWriteService chatWriteService;
     private final KafkaProducer kafkaProducer;
     private final RoomWriteService roomWriteService;
@@ -43,36 +46,34 @@ public class ChatService {
         Flux<ChatMessage> output = userSink.asFlux()
                 .doFinally(sig -> userSinks.remove(subject));
 
-        chatMemberReadService.findAllBySubject(subject)
+        return chatMemberReadService.findAllBySubject(subject)
                 .map(ChatMemberEntity::getRoomId)
                 .flatMap(roomId -> connectRoomToUser(roomId, userSink))
-                .subscribeOn(Schedulers.boundedElastic())
-                .subscribe(
-                        null,
-                        e -> System.out.println("Room 연결 실패: " + e.getMessage())
-                );
-
-        return output;
+                .thenMany(output);
     }
 
     private Mono<Void> connectRoomToUser(String roomId, Sinks.Many<ChatMessage> userSink) {
         RoomChannel room = rooms.computeIfAbsent(roomId, id -> new RoomChannel(id, rooms));
         Flux<ChatMessage> roomFlux = room.getFlux();
 
-        return roomFlux
-                .takeUntilOther(userSink.asFlux().ignoreElements())
-                .doOnNext(userSink::tryEmitNext)
-                .doOnError(sig -> System.out.println(sig))
-                .then();
+        roomFlux
+            .takeUntilOther(userSink.asFlux().ignoreElements())
+            .doOnNext(userSink::tryEmitNext)
+            .doOnError(sig -> System.out.println(sig))
+            .subscribeOn(Schedulers.boundedElastic())
+            .subscribe();
+
+        return Mono.empty();
     }
 
     public Mono<Void> sendMessage(ChatCommand.Chat command) {
         return createDmRoomIfNotExist(command)
-                .then(
-                    Mono.when(
-                        kafkaProducer.publish(command.roomId(), KafkaEvent.Chat.from(command)),
-                        kafkaProducer.publish(command.roomId(), KafkaEvent.Save.from(command))
-                    )
+                .then(messageIdGenerator.nextMessageId(command.roomId()))
+                .flatMap(messageId ->
+                        Mono.when(
+                                kafkaProducer.publish(command.roomId(), KafkaEvent.Chat.from(messageId, command)),
+                                kafkaProducer.publish(command.roomId(), KafkaEvent.Save.from(messageId, command))
+                        )
                 ).doOnError(e -> System.out.println("Kafka 전송 실패: " + e.getMessage()))
                 .onErrorResume(e -> Mono.empty());
     }
@@ -99,6 +100,7 @@ public class ChatService {
 
     public void sendChatMessageToLocalSubscribers(KafkaEvent.Chat event) {
         ChatMessage model = ChatMessage.builder()
+                .messageId(event.messageId())
                 .messageType(event.messageType())
                 .roomType(event.roomType())
                 .roomId(event.roomId())
@@ -139,7 +141,21 @@ public class ChatService {
                 .then();
     }
 
-    public Mono<Void> save(KafkaEvent.Save event) {
-        return chatWriteService.save(event);
+    @Transactional
+    public Mono<Void> saveMessageAndUpdateRoom(KafkaEvent.Save event) {
+        ChatCommand.Chat command = ChatCommand.Chat.builder()
+                .messageId(event.messageId())
+                .messageType(event.messageType())
+                .roomType(event.roomType())
+                .roomId(event.roomId())
+                .receiver(event.receiver())
+                .sender(event.sender())
+                .message(event.message())
+                .serviceId(event.serviceId())
+                .createdAt(event.createdAt())
+                .build();
+
+        return chatWriteService.save(command)
+                .then(roomWriteService.updateLastMsgId(event.roomId(), event.messageId()));
     }
 }

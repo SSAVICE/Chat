@@ -11,6 +11,7 @@ public class KafkaEvent {
 
     @Builder
     public record Chat(  // 메시지 전송용
+         Long messageId,
          MessageType messageType,
          RoomType roomType,
          String roomId,
@@ -21,8 +22,9 @@ public class KafkaEvent {
          LocalDateTime createdAt,
          Long[] readMsgIds
     ) {
-        public static Chat from(ChatCommand.Chat command) {
+        public static Chat from(Long messageId, ChatCommand.Chat command) {
             return Chat.builder()
+                    .messageId(messageId)
                     .messageType(command.messageType())
                     .roomType(command.roomType())
                     .roomId(command.roomId())
@@ -55,6 +57,7 @@ public class KafkaEvent {
 
     @Builder
     public record Save( // DB 저장용
+        Long messageId,
         MessageType messageType,
         RoomType roomType,
         String roomId,
@@ -64,8 +67,9 @@ public class KafkaEvent {
         Long serviceId,
         LocalDateTime createdAt
     ) {
-        public static Save from(ChatCommand.Chat command) {
+        public static Save from(Long messageId, ChatCommand.Chat command) {
             return Save.builder()
+                    .messageId(messageId)
                     .messageType(command.messageType())
                     .roomType(command.roomType())
                     .roomId(command.roomId())

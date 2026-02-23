@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ChatMessage {
+    private Long messageId;
     private MessageType messageType;
     private RoomType roomType;
     private String roomId;
