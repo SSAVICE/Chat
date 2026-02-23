@@ -5,6 +5,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties("kafka")
 public record KafkaProperties(
         String chatTopic,
-        String saveTopic
+        String saveTopic,
+        String readTopic
 ) {
 }

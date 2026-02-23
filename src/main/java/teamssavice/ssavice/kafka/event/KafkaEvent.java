@@ -2,8 +2,8 @@ package teamssavice.ssavice.kafka.event;
 
 import lombok.Builder;
 import teamssavice.ssavice.chat.MessageType;
-import teamssavice.ssavice.room.RoomType;
 import teamssavice.ssavice.chat.service.dto.ChatCommand;
+import teamssavice.ssavice.room.RoomType;
 
 import java.time.LocalDateTime;
 
@@ -18,9 +18,9 @@ public class KafkaEvent {
          Long sender,
          String message,
          Long serviceId,
-         LocalDateTime createdAt
+         LocalDateTime createdAt,
+         Long[] readMsgIds
     ) {
-
         public static Chat from(ChatCommand.Chat command) {
             return Chat.builder()
                     .messageType(command.messageType())
@@ -40,6 +40,15 @@ public class KafkaEvent {
                     .roomId(command.roomId())
                     .roomType(command.roomType())
                     .createdAt(command.createdAt())
+                    .build();
+        }
+
+        public static Chat from(ChatCommand.Read command) {
+            return Chat.builder()
+                    .messageType(command.messageType())
+                    .roomId(command.roomId())
+                    .sender(command.sender())
+                    .readMsgIds(command.readMsgIds())
                     .build();
         }
     }

@@ -33,12 +33,4 @@ public class RoomEntity {
     private LocalDateTime createdAt;
 
     private Long lastServiceId;
-
-    public Long getOppSubject(Long subject) {
-        String[] arr = roomName.split("_");
-        long id1 = Long.parseLong(arr[0]);
-        long id2 = Long.parseLong(arr[1]);
-
-        return subject == id1 ? id2 : id1;
-    }
 }

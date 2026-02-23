@@ -13,7 +13,6 @@ import teamssavice.ssavice.chat.MessageType;
 import teamssavice.ssavice.chat.service.ChatService;
 import teamssavice.ssavice.chat.service.dto.ChatCommand;
 import teamssavice.ssavice.chat.websocket.dto.WebSocketRequest;
-import teamssavice.ssavice.chatmember.service.ChatMemberService;
 
 
 @Slf4j
@@ -23,7 +22,6 @@ public class ChatWebSocketHandler implements WebSocketHandler {
 
     private final ObjectMapper objectMapper;
     private final ChatService chatService;
-    private final ChatMemberService chatMemberService;
 
     @Override
     public Mono<Void> handle(WebSocketSession session) {
@@ -43,7 +41,7 @@ public class ChatWebSocketHandler implements WebSocketHandler {
                     )
                     .flatMap(req -> {
                         if(MessageType.READ.equals(req.getMessageType())) {
-                            return chatMemberService.updateLastReadMsgId(ChatCommand.Read.from(req, subject));
+                            return chatService.readMessage(ChatCommand.Read.from(req, subject));
                         }
                         return chatService.sendMessage(ChatCommand.Chat.from(req, subject));
                     })

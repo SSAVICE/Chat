@@ -20,13 +20,16 @@ public class KafkaConsumer {
     )
     public void listen(KafkaEvent.Chat event) {
         System.out.println("consume: " + event.message());
-        if (MessageType.CREATE.equals(event.messageType()) && RoomType.DM.equals(event.roomType())) {
+        if(MessageType.READ.equals(event.messageType())) {
+            chatService.sendReadMessageToLocalSubscribers(event);
+            return;
+        }else if (MessageType.CREATE.equals(event.messageType()) && RoomType.DM.equals(event.roomType())) {
             chatService.connectRoomSinkForUser(event)
                     .doOnError(e -> System.out.println("RoomSink 연결 오류: " + e.getMessage()))
                     .subscribe();
             return;
         }
-        chatService.sendMessageToLocalSubscribers(event);
+        chatService.sendChatMessageToLocalSubscribers(event);
     }
 
     @KafkaListener(
@@ -34,7 +37,7 @@ public class KafkaConsumer {
             groupId = "chat-server-save-group"
     )
     public void listen(KafkaEvent.Save event) {
-        chatService.saveChatMessage(event)
+        chatService.save(event)
                 .doOnError(e -> System.out.println("메시지 저장 실패: " + e.getMessage()))
                 .block();
     }

@@ -3,7 +3,9 @@ package teamssavice.ssavice.chatmember.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import teamssavice.ssavice.chat.service.dto.ChatCommand;
 import teamssavice.ssavice.chatmember.entity.ChatMemberEntity;
 import teamssavice.ssavice.chatmember.infrastructure.repository.ChatMemberRepository;
 
@@ -30,8 +32,11 @@ public class ChatMemberWriteService {
                 .then();
     }
 
-    public Mono<Void> updateLastReadMsgIdIfGreater(String roomId, Long sender, Long lastReadMsgId) {
-        return chatMemberRepository.updateLastReadMsgIdIfGreater(roomId, sender, lastReadMsgId)
+    public Mono<Void> updateLastReadMsgIdIfGreater(ChatCommand.Read command) {
+
+        return Flux.fromArray(command.readMsgIds())
+                .reduce(Long::max)
+                .flatMap(lastReadMsgId -> chatMemberRepository.updateLastReadMsgIdIfGreater(command.roomId(), command.sender(), lastReadMsgId))
                 .doOnError(e -> System.out.println("마지막 메시지 기록 저장 실패: " + e.getMessage()))
                 .then();
     }

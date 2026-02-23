@@ -21,4 +21,5 @@ public class ChatMessage {
     private String message;
     private Long serviceId;
     private LocalDateTime createdAt;
+    private Long[] readMsgIds;
 }

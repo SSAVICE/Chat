@@ -77,6 +77,13 @@ public class ChatService {
                 .onErrorResume(e -> Mono.empty());
     }
 
+    public Mono<Void> readMessage(ChatCommand.Read command) {
+        return chatMemberWriteService.updateLastReadMsgIdIfGreater(command)
+                .then(kafkaProducer.publish(command.roomId(), KafkaEvent.Chat.from(command)))
+                .doOnError(e -> System.out.println("Read 처리 실패: " + e.getMessage()))
+                .onErrorResume(e -> Mono.empty());
+    }
+
     public Mono<Void> createDmRoomIfNotExist(ChatCommand.Chat command) {
         if(!RoomType.DM.equals(command.roomType())) return Mono.empty();
         String roomName = command.sender() + "_" + command.receiver();
@@ -90,7 +97,7 @@ public class ChatService {
                 });
     }
 
-    public void sendMessageToLocalSubscribers(KafkaEvent.Chat event) {
+    public void sendChatMessageToLocalSubscribers(KafkaEvent.Chat event) {
         ChatMessage model = ChatMessage.builder()
                 .messageType(event.messageType())
                 .roomType(event.roomType())
@@ -109,6 +116,21 @@ public class ChatService {
         }
     }
 
+    public void sendReadMessageToLocalSubscribers(KafkaEvent.Chat event) {
+        ChatMessage model = ChatMessage.builder()
+                .messageType(event.messageType())
+                .roomId(event.roomId())
+                .sender(event.sender())
+                .readMsgIds(event.readMsgIds())
+                .build();
+
+        String roomId = event.roomId();
+        RoomChannel room = rooms.get(roomId);
+        if(room != null) {
+            room.emit(model);
+        }
+    }
+
     public Mono<Void> connectRoomSinkForUser(KafkaEvent.Chat event) {
         return chatMemberReadService.findAllByRoomId(event.roomId())
                 .map(ChatMemberEntity::getSubject)
@@ -117,7 +139,7 @@ public class ChatService {
                 .then();
     }
 
-    public Mono<Void> saveChatMessage(KafkaEvent.Save event) {
+    public Mono<Void> save(KafkaEvent.Save event) {
         return chatWriteService.save(event);
     }
 }

@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS chat_member (
      subject BIGINT NOT NULL,              -- Long subject
      joined_at TIMESTAMP NOT NULL,         -- joinedAt
      is_left BOOLEAN DEFAULT FALSE,        -- Boolean isLeft Default: false
-     last_read_msg_id BIGINT NOT NULL,     -- Long lastReadMsgId
+     last_read_msg_id BIGINT NOT NULL,     -- Long readMsgIds
 
     CONSTRAINT uq_room_user UNIQUE (room_id, subject)
 );

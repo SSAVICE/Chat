@@ -14,5 +14,5 @@ public class WebSocketRequest {
     private Long receiver;
     private String message;
     private Long serviceId;
-    private Long lastReadMsgId;
+    private Long[] readMsgIds;
 }
