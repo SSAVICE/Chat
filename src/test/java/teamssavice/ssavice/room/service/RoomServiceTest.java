@@ -70,12 +70,14 @@ class RoomServiceTest {
                     assertThat(model1.roomId()).isEqualTo(roomId1);
                     assertThat(model1.lastMsgId()).isEqualTo(3L);
                     assertThat(model1.unReadMsgCnt()).isEqualTo(2);
+                    assertThat(model1.lastMessage()).isEqualTo("last message");
                     assertThat(model1.memberCnt()).isEqualTo(1);
 
                     ChatModel.Room model2 = rooms.get(1);
                     assertThat(model2.roomId()).isEqualTo(roomId2);
                     assertThat(model2.lastMsgId()).isEqualTo(2L);
                     assertThat(model2.unReadMsgCnt()).isEqualTo(0);
+                    assertThat(model2.lastMessage()).isEqualTo("world");
                     assertThat(model2.memberCnt()).isEqualTo(1);
                 })
                 .verifyComplete();
