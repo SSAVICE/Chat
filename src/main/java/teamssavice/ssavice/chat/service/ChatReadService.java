@@ -16,4 +16,16 @@ public class ChatReadService {
     public Flux<ChatMessageEntity> findAllByMessageIdIn(List<Long> messageIds) {
         return chatMessageRepository.findAllByMessageIdIn(messageIds);
     }
+
+    public Flux<ChatMessageEntity> findMessagesAfterCursor(String roomId, Long cursor, int limit) {
+        return chatMessageRepository.findMessagesAfterCursor(roomId, cursor, limit);
+    }
+
+    public Flux<ChatMessageEntity> findMessagesBeforeCursor(String roomId, Long cursor, int limit) {
+        return chatMessageRepository.findMessagesBeforeCursor(roomId, cursor, limit);
+    }
+
+    public Flux<ChatMessageEntity> findLatestMessages(String roomId, int limit) {
+        return chatMessageRepository.findLatestMessages(roomId, limit);
+    }
 }

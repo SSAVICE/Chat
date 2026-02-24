@@ -41,6 +41,11 @@ public class RoomService {
                 });
     }
 
+    private Mono<Map<String, ChatMemberEntity>> getMyMemberMap(Long subject) {
+        return chatMemberReadService.findAllBySubject(subject)
+                .collectMap(ChatMemberEntity::getRoomId);
+    }
+
     private Mono<RoomQueryResult> getRoomsWithDependencies(List<String> roomIds) {
 
         return roomReadService.findAllByRoomIdIn(roomIds)
@@ -68,12 +73,6 @@ public class RoomService {
 
             return ChatModel.Room.of(room, lastMessage, members.size(), lastReadMsgId);
         }).toList();
-    }
-
-
-    private Mono<Map<String, ChatMemberEntity>> getMyMemberMap(Long subject) {
-        return chatMemberReadService.findAllBySubject(subject)
-                .collectMap(ChatMemberEntity::getRoomId);
     }
 
     @Transactional(readOnly = true)

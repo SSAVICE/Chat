@@ -1,9 +1,10 @@
 package teamssavice.ssavice.chat.service.dto;
 
 import lombok.Builder;
+import teamssavice.ssavice.chat.CursorDirection;
 import teamssavice.ssavice.chat.MessageType;
-import teamssavice.ssavice.room.RoomType;
 import teamssavice.ssavice.chat.websocket.dto.WebSocketRequest;
+import teamssavice.ssavice.room.RoomType;
 
 import java.time.LocalDateTime;
 
@@ -56,5 +57,15 @@ public class ChatCommand {
                     .readMsgIds(request.getReadMsgIds())
                     .build();
         }
+    }
+
+    @Builder
+    public record MessageCursor(
+            Long cursor,
+            CursorDirection direction,
+            String roomId,
+            Integer size
+    ) {
+
     }
 }

@@ -1,9 +1,6 @@
 package teamssavice.ssavice.global.filter;
 
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.MalformedJwtException;
-import io.jsonwebtoken.UnsupportedJwtException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.server.reactive.ServerHttpRequest;
@@ -31,19 +28,9 @@ public class JwtAuthFilter implements WebFilter {
             Claims claims = jwtTokenProvider.getClaim(jwtToken);
             Long subject = Long.parseLong(claims.getSubject());
 
-            // rest용
             return chain.filter(exchange)
                     .contextWrite(ctx -> ctx.put("subject", subject));
-
-        } catch (SecurityException | MalformedJwtException e) {
-            return Mono.error(new AuthenticationException(ErrorCode.INVALID_TOKEN));
-        } catch (ExpiredJwtException e) {
-            return Mono.error(new AuthenticationException(ErrorCode.EXPIRED_TOKEN));
-        } catch (UnsupportedJwtException e) {
-            return Mono.error(new AuthenticationException(ErrorCode.UNSUPPORTED_TOKEN));
-        } catch (IllegalArgumentException e) {
-            return Mono.error(new AuthenticationException(ErrorCode.MISSING_TOKEN));
-        } catch (Exception e) {
+        }  catch (Exception e) {
             return Mono.error(new AuthenticationException(ErrorCode.UNKNOWN_TOKEN_ERROR));
         }
     }

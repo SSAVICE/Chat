@@ -8,6 +8,7 @@ import teamssavice.ssavice.chatmember.entity.ChatMemberEntity;
 import teamssavice.ssavice.chatmember.infrastructure.repository.ChatMemberRepository;
 import teamssavice.ssavice.global.constants.ErrorCode;
 import teamssavice.ssavice.global.exception.DataNotFoundException;
+import teamssavice.ssavice.global.exception.ForbiddenException;
 
 import java.util.List;
 
@@ -27,5 +28,12 @@ public class ChatMemberReadService {
 
     public Flux<ChatMemberEntity> findAllByRoomIdIn(List<String> roomIds) {
         return chatMemberRepository.findAllByRoomIdIn(roomIds);
+    }
+
+    public Mono<Void> validateChatMember(String roomId, Long subject) {
+        return chatMemberRepository.existsByRoomIdAndSubject(roomId, subject)
+                .filter(Boolean::booleanValue)
+                .switchIfEmpty(Mono.error(new ForbiddenException(ErrorCode.FORBIDDEN)))
+                .then();
     }
 }

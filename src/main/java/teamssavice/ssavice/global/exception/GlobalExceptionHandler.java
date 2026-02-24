@@ -6,9 +6,10 @@ import org.springframework.core.codec.DecodingException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.bind.support.WebExchangeBindException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ServerWebInputException;
 import reactor.core.publisher.Mono;
 
@@ -18,20 +19,6 @@ import java.util.Map;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public Mono<ResponseEntity<ProblemDetail>> methodArgumentNotValidException(
-            MethodArgumentNotValidException e
-    ) {
-        ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
-        Map<String, Object> errors = new HashMap<>();
-        e.getBindingResult().getFieldErrors()
-                .forEach(field ->
-                        errors.put(field.getField(), field.getDefaultMessage()));
-
-        problemDetail.setTitle("Validation Error");
-        problemDetail.setProperty("errors", errors);
-        return Mono.just(ResponseEntity.badRequest().body(problemDetail));
-    }
 
     @ExceptionHandler(ConstraintViolationException.class)
     public Mono<ResponseEntity<ProblemDetail>> constraintViolationException(
@@ -48,6 +35,32 @@ public class GlobalExceptionHandler {
         return Mono.just(ResponseEntity.badRequest().body(problemDetail));
     }
 
+    @ExceptionHandler(WebExchangeBindException.class)
+    public Mono<ResponseEntity<ProblemDetail>> webExchangeBindException(
+            WebExchangeBindException e
+    ) {
+        ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+        problemDetail.setTitle("Validation Error");
+
+        Map<String, Object> errors = new HashMap<>();
+        e.getFieldErrors().forEach(field ->
+                errors.put(field.getField(), field.getDefaultMessage())
+        );
+        problemDetail.setProperty("errors", errors);
+
+        return Mono.just(ResponseEntity.badRequest().body(problemDetail));
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public Mono<ResponseEntity<ProblemDetail>> methodArgumentTypeMismatchException(
+            MethodArgumentTypeMismatchException e
+    ) {
+        ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+        problemDetail.setTitle("Invalid Parameter Type");
+        problemDetail.setDetail(String.format("Parameter '%s' has invalid value '%s'", e.getName(), e.getValue()));
+        return Mono.just(ResponseEntity.badRequest().body(problemDetail));
+    }
+
     @ExceptionHandler(ServerWebInputException.class)
     public Mono<ResponseEntity<ProblemDetail>> handleServerWebInputException(
             ServerWebInputException e
@@ -59,26 +72,10 @@ public class GlobalExceptionHandler {
         return Mono.just(ResponseEntity.badRequest().body(problemDetail));
     }
 
-    @ExceptionHandler(DataNotFoundException.class)
-    public Mono<ResponseEntity<ProblemDetail>> dataNotFoundException(DataNotFoundException e) {
-        ProblemDetail problemDetail = setCustomProblemDetail(e);
-        return Mono.just(ResponseEntity
-                .status(problemDetail.getStatus())
-                .body(problemDetail)
-        );
-    }
-
-    @ExceptionHandler(AuthenticationException.class)
-    public Mono<ResponseEntity<ProblemDetail>> authenticationException(AuthenticationException e) {
-        ProblemDetail problemDetail = setCustomProblemDetail(e);
-        return Mono.just(ResponseEntity
-                .status(problemDetail.getStatus())
-                .body(problemDetail)
-        );
-    }
-
-    @ExceptionHandler(ForbiddenException.class)
-    public Mono<ResponseEntity<ProblemDetail>> forbiddenException(ForbiddenException e) {
+    @ExceptionHandler(CustomException.class)
+    public Mono<ResponseEntity<ProblemDetail>> handleCustom(
+            CustomException e
+    ) {
         ProblemDetail problemDetail = setCustomProblemDetail(e);
         return Mono.just(ResponseEntity
                 .status(problemDetail.getStatus())

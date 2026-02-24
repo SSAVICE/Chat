@@ -7,7 +7,7 @@ import teamssavice.ssavice.chat.service.dto.ChatModel;
 import java.time.LocalDateTime;
 import java.util.List;
 
-public class ChatResponse {
+public class RoomResponse {
 
     @Builder
     public record Rooms(

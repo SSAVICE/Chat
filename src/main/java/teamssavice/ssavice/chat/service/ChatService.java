@@ -9,9 +9,11 @@ import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Schedulers;
 import teamssavice.ssavice.chat.ChatMessage;
 import teamssavice.ssavice.chat.service.dto.ChatCommand;
+import teamssavice.ssavice.chat.service.dto.ChatModel;
 import teamssavice.ssavice.chatmember.entity.ChatMemberEntity;
 import teamssavice.ssavice.chatmember.service.ChatMemberReadService;
 import teamssavice.ssavice.chatmember.service.ChatMemberWriteService;
+import teamssavice.ssavice.global.dto.Auth;
 import teamssavice.ssavice.kafka.KafkaProducer;
 import teamssavice.ssavice.kafka.event.KafkaEvent;
 import teamssavice.ssavice.redis.MessageIdGenerator;
@@ -29,8 +31,9 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ChatService {
 
     private final MessageIdGenerator messageIdGenerator;
-    private final ChatWriteService chatWriteService;
     private final KafkaProducer kafkaProducer;
+    private final ChatWriteService chatWriteService;
+    private final ChatReadService chatReadService;
     private final RoomWriteService roomWriteService;
     private final RoomReadService roomReadService;
     private final ChatMemberWriteService chatMemberWriteService;
@@ -157,5 +160,20 @@ public class ChatService {
 
         return chatWriteService.save(command)
                 .then(roomWriteService.updateLastMsgId(event.roomId(), event.messageId()));
+    }
+
+    @Transactional(readOnly = true)
+    public Flux<ChatModel.Message> getMessagesByCursor(Auth auth, ChatCommand.MessageCursor command
+    ) {
+        return chatMemberReadService.validateChatMember(command.roomId(), auth.subject())
+                .thenMany(
+                        switch (command.direction()) {
+                            case AFTER ->
+                                    chatReadService.findMessagesAfterCursor(command.roomId(), command.cursor(), command.size());
+                            case BEFORE ->
+                                    chatReadService.findMessagesBeforeCursor(command.roomId(), command.cursor(), command.size());
+                            case LATEST -> chatReadService.findLatestMessages(command.roomId(), command.size());
+                        })
+                .map(ChatModel.Message::from);
     }
 }
