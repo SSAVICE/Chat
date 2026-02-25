@@ -4,8 +4,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Mono;
-import teamssavice.ssavice.chat.entity.ChatMessageEntity;
-import teamssavice.ssavice.chat.service.ChatReadService;
 import teamssavice.ssavice.chat.service.dto.ChatModel;
 import teamssavice.ssavice.chatmember.entity.ChatMemberEntity;
 import teamssavice.ssavice.chatmember.service.ChatMemberReadService;
@@ -23,7 +21,6 @@ import java.util.*;
 @Service
 @RequiredArgsConstructor
 public class RoomService {
-    private final ChatReadService chatReadService;
     private final UserReadService userReadService;
     private final RoomReadService roomReadService;
     private final ChatMemberReadService chatMemberReadService;
@@ -50,16 +47,12 @@ public class RoomService {
 
         return roomReadService.findAllByRoomIdIn(roomIds)
                 .collectList()
-                .flatMap(rooms -> {
-                    List<Long> lastMsgIds = rooms.stream().map(RoomEntity::getLastMsgId).toList();
-
-                    return Mono.zip(
+                .flatMap(rooms ->
+                        Mono.zip(
                             Mono.just(rooms),
-                            chatMemberReadService.findAllByRoomIdIn(roomIds).collectMultimap(ChatMemberEntity::getRoomId),
-                            chatReadService.findAllByMessageIdIn(lastMsgIds).collectMap(ChatMessageEntity::getRoomId)
-                    );
-                })
-                .map(tuple -> new RoomQueryResult(tuple.getT1(), tuple.getT2(), tuple.getT3()));
+                            chatMemberReadService.findAllByRoomIdIn(roomIds).collectMultimap(ChatMemberEntity::getRoomId)
+                    ))
+                .map(tuple -> new RoomQueryResult(tuple.getT1(), tuple.getT2()));
     }
 
     private List<ChatModel.Room> assembleRooms(
@@ -68,10 +61,9 @@ public class RoomService {
     ) {
         return data.rooms().stream().map(room -> {
             Collection<ChatMemberEntity> members = data.memberMap().getOrDefault(room.getRoomId(), List.of());
-            ChatMessageEntity lastMessage = data.lastMessageMap().get(room.getRoomId());
             Long lastReadMsgId = myMemberMap.get(room.getRoomId()).getLastReadMsgId();
 
-            return ChatModel.Room.of(room, lastMessage, members.size(), lastReadMsgId);
+            return ChatModel.Room.of(room, members.size(), lastReadMsgId);
         }).toList();
     }
 

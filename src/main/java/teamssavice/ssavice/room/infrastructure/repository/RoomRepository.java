@@ -7,6 +7,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import teamssavice.ssavice.room.entity.RoomEntity;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface RoomRepository extends R2dbcRepository<RoomEntity, Long> {
@@ -15,10 +16,10 @@ public interface RoomRepository extends R2dbcRepository<RoomEntity, Long> {
     Mono<Boolean> existsByRoomId(String roomId);
 
     @Modifying
-    @Query("UPDATE room SET last_msg_id = :lastMsgId " +
+    @Query("UPDATE room SET last_msg_id = :lastMsgId, last_msg_at = : lastMsgAt " +
             "WHERE room_id = :roomId " +
             "AND last_msg_id < :lastMsgId")
-    Mono<Integer> updateLastMsgId(String roomId, Long lastMsgId);
+    Mono<Integer> updateLastMsgId(String roomId, Long lastMsgId, LocalDateTime lastMsgAt);
 
     Flux<RoomEntity> findAllByRoomIdIn(List<String> roomIds);
 }

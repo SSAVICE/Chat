@@ -5,7 +5,8 @@ CREATE TABLE IF NOT EXISTS room (
     type VARCHAR(20) NOT NULL,            -- Enum RoomType (문자열로 저장)
     created_at TIMESTAMP NOT NULL,        -- createdAt
     last_service_id BIGINT,               -- Long lastServiceId
-    last_msg_id BIGINT                   -- Long lastMsgId
+    last_msg_id BIGINT,                   -- Long lastMsgId
+    last_msg_at TIMESTAMP                 -- lastMsgAt
 );
 
 CREATE TABLE IF NOT EXISTS chat_member (

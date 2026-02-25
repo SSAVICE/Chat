@@ -18,7 +18,6 @@ public class ChatModel {
             Long serviceId,
             Long lastMsgId, // 마지막 채팅 Id
             Long unReadMsgCnt, // 안읽은 메시지 수
-            String lastMessage, // 마지막 메시지
             Integer memberCnt,
             LocalDateTime lastMsgAt // 마지막 메시지 시간
 
@@ -31,7 +30,7 @@ public class ChatModel {
                     .build();
         }
 
-        public static ChatModel.Room of(RoomEntity room, ChatMessageEntity lastMessage, int memberCnt, Long lastReadMsgId) {
+        public static ChatModel.Room of(RoomEntity room, int memberCnt, Long lastReadMsgId) {
 
             return Room.builder()
                     .roomId(room.getRoomId())
@@ -40,9 +39,8 @@ public class ChatModel {
                     .serviceId(room.getLastServiceId())
                     .lastMsgId(room.getLastMsgId())
                     .unReadMsgCnt(room.getLastMsgId() - lastReadMsgId)
-                    .lastMessage(lastMessage.getMessage())
                     .memberCnt(memberCnt)
-                    .lastMsgAt(lastMessage.getCreatedAt())
+                    .lastMsgAt(room.getLastMsgAt())
                     .build();
         }
     }

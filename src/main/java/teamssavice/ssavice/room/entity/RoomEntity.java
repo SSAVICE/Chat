@@ -36,4 +36,6 @@ public class RoomEntity {
 
     @Builder.Default
     private Long lastMsgId = 0L;
+
+    private LocalDateTime lastMsgAt;
 }

@@ -16,12 +16,12 @@ import teamssavice.ssavice.global.dto.Auth;
 import teamssavice.ssavice.room.entity.RoomEntity;
 import teamssavice.ssavice.room.infrastructure.repository.RoomRepository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
-
 class RoomServiceTest {
     @Autowired
     private RoomService roomService;
@@ -35,21 +35,22 @@ class RoomServiceTest {
     private final String roomId1 = "1_2";
     private final String roomId2 = "1_3";
     private final Long subject = 1L;
+    private final LocalDateTime now = LocalDateTime.now().withNano((LocalDateTime.now().getNano() / 1_000) * 1_000);
 
 
     @BeforeEach
     void setUp() {
-        RoomEntity room1 = RoomFixture.room(roomId1, "1_2", 3L);
-        RoomEntity room2 = RoomFixture.room(roomId2, "1_3", 2L);
+        RoomEntity room1 = RoomFixture.room(roomId1, "1_2", 3L, now.plusMinutes(4));
+        RoomEntity room2 = RoomFixture.room(roomId2, "1_3", 2L, now.plusMinutes(3));
         roomRepository.save(room1).block();
         roomRepository.save(room2).block();
 
         chatMessageRepository.saveAll(List.of(
-                ChatMessageFixture.chatDmMessage(1L, roomId1, "hello", subject),
-                ChatMessageFixture.chatDmMessage(1L, roomId2, "hello", subject),
-                ChatMessageFixture.chatDmMessage(2L, roomId1, "world", subject),
-                ChatMessageFixture.chatDmMessage(2L, roomId2, "world", subject),
-                ChatMessageFixture.chatDmMessage(3L, roomId1, "last message", subject)
+                ChatMessageFixture.chatDmMessage(1L, roomId1, "hello", subject, now),
+                ChatMessageFixture.chatDmMessage(1L, roomId2, "hello", subject, now.plusMinutes(1)),
+                ChatMessageFixture.chatDmMessage(2L, roomId1, "world", subject, now.plusMinutes(2)),
+                ChatMessageFixture.chatDmMessage(2L, roomId2, "world", subject, now.plusMinutes(3)),
+                ChatMessageFixture.chatDmMessage(3L, roomId1, "last message", subject, now.plusMinutes(4))
         )).collectList().block();
 
         chatMemberRepository.save(ChatMemberFixture.chatMember(roomId1, subject, 1L)).block();
@@ -69,15 +70,15 @@ class RoomServiceTest {
                     ChatModel.Room model1 = rooms.get(0);
                     assertThat(model1.roomId()).isEqualTo(roomId1);
                     assertThat(model1.lastMsgId()).isEqualTo(3L);
+                    assertThat(model1.lastMsgAt()).isEqualTo(now.plusMinutes(4));
                     assertThat(model1.unReadMsgCnt()).isEqualTo(2);
-                    assertThat(model1.lastMessage()).isEqualTo("last message");
                     assertThat(model1.memberCnt()).isEqualTo(1);
 
                     ChatModel.Room model2 = rooms.get(1);
                     assertThat(model2.roomId()).isEqualTo(roomId2);
                     assertThat(model2.lastMsgId()).isEqualTo(2L);
+                    assertThat(model2.lastMsgAt()).isEqualTo(now.plusMinutes(3));
                     assertThat(model2.unReadMsgCnt()).isEqualTo(0);
-                    assertThat(model2.lastMessage()).isEqualTo("world");
                     assertThat(model2.memberCnt()).isEqualTo(1);
                 })
                 .verifyComplete();

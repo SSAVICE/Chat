@@ -159,7 +159,7 @@ public class ChatService {
                 .build();
 
         return chatWriteService.save(command)
-                .then(roomWriteService.updateLastMsgId(event.roomId(), event.messageId()));
+                .then(roomWriteService.updateLastMsgId(event.roomId(), event.messageId(), event.createdAt()));
     }
 
     @Transactional(readOnly = true)
