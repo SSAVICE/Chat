@@ -20,9 +20,10 @@ public class KafkaEvent {
          String message,
          Long serviceId,
          LocalDateTime createdAt,
-         Long[] readMsgIds
+         Long[] readMsgIds,
+         boolean isNewRoom
     ) {
-        public static Chat from(Long messageId, ChatCommand.Chat command) {
+        public static Chat from(Long messageId, ChatCommand.Chat command, boolean isNewRoom) {
             return Chat.builder()
                     .messageId(messageId)
                     .messageType(command.messageType())
@@ -33,15 +34,7 @@ public class KafkaEvent {
                     .message(command.message())
                     .serviceId(command.serviceId())
                     .createdAt(command.createdAt())
-                    .build();
-        }
-
-        public static Chat createEvent(ChatCommand.Chat command) {
-            return Chat.builder()
-                    .messageType(MessageType.CREATE)
-                    .roomId(command.roomId())
-                    .roomType(command.roomType())
-                    .createdAt(command.createdAt())
+                    .isNewRoom(isNewRoom)
                     .build();
         }
 

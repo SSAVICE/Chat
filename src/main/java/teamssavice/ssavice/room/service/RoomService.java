@@ -4,29 +4,25 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Mono;
-import teamssavice.ssavice.chat.service.dto.ChatModel;
 import teamssavice.ssavice.chatmember.entity.ChatMemberEntity;
 import teamssavice.ssavice.chatmember.service.ChatMemberReadService;
 import teamssavice.ssavice.global.constants.ErrorCode;
 import teamssavice.ssavice.global.dto.Auth;
-import teamssavice.ssavice.global.exception.DataNotFoundException;
 import teamssavice.ssavice.global.exception.ForbiddenException;
-import teamssavice.ssavice.room.RoomType;
 import teamssavice.ssavice.room.entity.RoomEntity;
+import teamssavice.ssavice.room.service.dto.RoomModel;
 import teamssavice.ssavice.room.service.dto.RoomQueryResult;
-import teamssavice.ssavice.user.service.UserReadService;
 
 import java.util.*;
 
 @Service
 @RequiredArgsConstructor
 public class RoomService {
-    private final UserReadService userReadService;
     private final RoomReadService roomReadService;
     private final ChatMemberReadService chatMemberReadService;
 
     @Transactional(readOnly = true)
-    public Mono<List<ChatModel.Room>> findAllRooms(Auth auth) {
+    public Mono<List<RoomModel.Room>> findAllRooms(Auth auth) {
 
         return getMyMemberMap(auth.subject())
                 .flatMap(myMemberMap -> {
@@ -55,7 +51,7 @@ public class RoomService {
                 .map(tuple -> new RoomQueryResult(tuple.getT1(), tuple.getT2()));
     }
 
-    private List<ChatModel.Room> assembleRooms(
+    private List<RoomModel.Room> assembleRooms(
             RoomQueryResult data,
             Map<String, ChatMemberEntity> myMemberMap
     ) {
@@ -63,35 +59,29 @@ public class RoomService {
             Collection<ChatMemberEntity> members = data.memberMap().getOrDefault(room.getRoomId(), List.of());
             Long lastReadMsgId = myMemberMap.get(room.getRoomId()).getLastReadMsgId();
 
-            return ChatModel.Room.of(room, members.size(), lastReadMsgId);
+            return RoomModel.Room.of(room, members.size(), lastReadMsgId);
         }).toList();
     }
 
     @Transactional(readOnly = true)
-    public Mono<ChatModel.Room> findByRoomId(String roomId, Auth auth) {
-        return roomReadService.findByRoomId(roomId)
-                .flatMap(room -> getOppositeName(room, auth));
+    public Mono<RoomModel.Detail> getRoomDetail(String roomId, Auth auth) {
+
+        Mono<RoomEntity> roomMono = roomReadService.findByRoomId(roomId);
+        Mono<List<ChatMemberEntity>> membersMono = chatMemberReadService.findAllByRoomId(roomId).collectList();
+
+        return Mono.zip(roomMono, membersMono)
+                .flatMap(tuple -> {
+                    RoomEntity room = tuple.getT1();
+                    List<ChatMemberEntity> members = tuple.getT2();
+
+                    return verifyMember(members, auth.subject())
+                            .then(Mono.just(RoomModel.Detail.of(room, members)));
+                });
     }
 
-    private Mono<ChatModel.Room> getOppositeName(RoomEntity room, Auth auth) {
-        if(RoomType.GROUP.equals(room.getType())) return Mono.just(ChatModel.Room.from(room, room.getRoomName()));
-
-        String roomName = room.getRoomName();
-        String[] parts = roomName.split("_");
-        if(parts.length != 2) return Mono.error(new DataNotFoundException(ErrorCode.ROOM_NOT_FOUND));
-
-        long id1 = Long.parseLong(parts[0]);
-        long id2 = Long.parseLong(parts[1]);
-
-        long myId = auth.subject();
-
-        long oppSubject;
-        if (myId == id1) oppSubject = id2;
-        else if (myId == id2) oppSubject = id1;
-        else return Mono.error(new ForbiddenException(ErrorCode.FORBIDDEN));
-
-        return userReadService.findById(oppSubject)
-                .switchIfEmpty(Mono.error(new DataNotFoundException(ErrorCode.ROOM_NOT_FOUND)))
-                .map(user -> ChatModel.Room.from(room, user.getName()));
+    private Mono<Void> verifyMember(List<ChatMemberEntity> members, Long subject) {
+        boolean isMember = members.stream().anyMatch(m -> m.getSubject().equals(subject));
+        return isMember ? Mono.empty() : Mono.error(new ForbiddenException(ErrorCode.FORBIDDEN));
     }
+
 }

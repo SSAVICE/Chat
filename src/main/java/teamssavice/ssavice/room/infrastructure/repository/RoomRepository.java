@@ -16,7 +16,7 @@ public interface RoomRepository extends R2dbcRepository<RoomEntity, Long> {
     Mono<Boolean> existsByRoomId(String roomId);
 
     @Modifying
-    @Query("UPDATE room SET last_msg_id = :lastMsgId, last_msg_at = : lastMsgAt " +
+    @Query("UPDATE room SET last_msg_id = :lastMsgId, last_msg_at = :lastMsgAt " +
             "WHERE room_id = :roomId " +
             "AND last_msg_id < :lastMsgId")
     Mono<Integer> updateLastMsgId(String roomId, Long lastMsgId, LocalDateTime lastMsgAt);

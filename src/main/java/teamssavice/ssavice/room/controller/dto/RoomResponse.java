@@ -2,7 +2,7 @@ package teamssavice.ssavice.room.controller.dto;
 
 import lombok.Builder;
 import teamssavice.ssavice.room.RoomType;
-import teamssavice.ssavice.chat.service.dto.ChatModel;
+import teamssavice.ssavice.room.service.dto.RoomModel;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -13,7 +13,7 @@ public class RoomResponse {
     public record Rooms(
             List<Room> rooms
     ) {
-        public static Rooms from(List<ChatModel.Room> model) {
+        public static Rooms from(List<RoomModel.Room> model) {
             return Rooms.builder()
                     .rooms(model.stream().map(Room::from).toList())
                     .build();
@@ -31,7 +31,7 @@ public class RoomResponse {
             int memberCnt,
             LocalDateTime lastMsgAt // // 마지막 메시지 시간
     ) {
-        public static Room from(ChatModel.Room model) {
+        public static Room from(RoomModel.Room model) {
             return Room.builder()
                     .roomId(model.roomId())
                     .roomName(model.roomName())
@@ -51,11 +51,18 @@ public class RoomResponse {
             String roomName,
             RoomType roomType,
             Long serviceId,
-            Long[] lastReadMsgIds,
-            Long[] memberIds,
-            String[] memberNames,
-            String[] profileImgUrls
+            List<Long> lastReadMsgIds,
+            List<Long> memberIds
     ) {
-
+        public static Detail from(RoomModel.Detail model) {
+            return Detail.builder()
+                    .roomId(model.roomId())
+                    .roomName(model.roomName())
+                    .roomType(model.roomType())
+                    .serviceId(model.serviceId())
+                    .lastReadMsgIds(model.lastReadMsgIds())
+                    .memberIds(model.memberIds())
+                    .build();
+        }
     }
 }

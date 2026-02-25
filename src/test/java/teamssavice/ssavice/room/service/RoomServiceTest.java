@@ -15,6 +15,7 @@ import teamssavice.ssavice.fixture.RoomFixture;
 import teamssavice.ssavice.global.dto.Auth;
 import teamssavice.ssavice.room.entity.RoomEntity;
 import teamssavice.ssavice.room.infrastructure.repository.RoomRepository;
+import teamssavice.ssavice.room.service.dto.RoomModel;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -67,14 +68,14 @@ class RoomServiceTest {
                 .assertNext(rooms -> {
                     assertThat(rooms).hasSize(2);
 
-                    ChatModel.Room model1 = rooms.get(0);
+                    RoomModel.Room model1 = rooms.get(0);
                     assertThat(model1.roomId()).isEqualTo(roomId1);
                     assertThat(model1.lastMsgId()).isEqualTo(3L);
                     assertThat(model1.lastMsgAt()).isEqualTo(now.plusMinutes(4));
                     assertThat(model1.unReadMsgCnt()).isEqualTo(2);
                     assertThat(model1.memberCnt()).isEqualTo(1);
 
-                    ChatModel.Room model2 = rooms.get(1);
+                    RoomModel.Room model2 = rooms.get(1);
                     assertThat(model2.roomId()).isEqualTo(roomId2);
                     assertThat(model2.lastMsgId()).isEqualTo(2L);
                     assertThat(model2.lastMsgAt()).isEqualTo(now.plusMinutes(3));
