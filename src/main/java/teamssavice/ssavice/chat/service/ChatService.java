@@ -6,7 +6,6 @@ import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
-import reactor.core.scheduler.Schedulers;
 import teamssavice.ssavice.chat.ChatMessage;
 import teamssavice.ssavice.chat.service.dto.ChatCommand;
 import teamssavice.ssavice.chat.service.dto.ChatModel;
@@ -39,45 +38,37 @@ public class ChatService {
     private final ChatMemberWriteService chatMemberWriteService;
     private final ChatMemberReadService chatMemberReadService;
 
-    private final Map<Long, Sinks.Many<ChatMessage>> userSinks = new ConcurrentHashMap<>();
+    private final Map<Long, Sinks.Many<String>> userSinks = new ConcurrentHashMap<>(); // User가 roomId를 emit하는 용도
     private final Map<String, RoomChannel> rooms = new ConcurrentHashMap<>();
 
     public Flux<ChatMessage> registerUser(Long subject) {
-        Sinks.Many<ChatMessage> userSink = Sinks.many().multicast().onBackpressureBuffer();
+        Sinks.Many<String> userSink = Sinks.many().unicast().onBackpressureBuffer();
         userSinks.put(subject, userSink);
 
-        Flux<ChatMessage> output = userSink.asFlux()
-                .doFinally(sig -> userSinks.remove(subject));
-
-        return chatMemberReadService.findAllBySubject(subject)
+        chatMemberReadService.findAllBySubject(subject)
                 .map(ChatMemberEntity::getRoomId)
-                .flatMap(roomId -> connectRoomToUser(roomId, userSink))
-                .thenMany(output);
-    }
+                .subscribe(
+                        userSink::tryEmitNext,
+                        error -> System.out.println("userSink에 emit 실패: " + error)
+                );
 
-    private Mono<Void> connectRoomToUser(String roomId, Sinks.Many<ChatMessage> userSink) {
-        RoomChannel room = rooms.computeIfAbsent(roomId, id -> new RoomChannel(id, rooms));
-        Flux<ChatMessage> roomFlux = room.getFlux();
-
-        roomFlux
-            .takeUntilOther(userSink.asFlux().ignoreElements())
-            .doOnNext(userSink::tryEmitNext)
-            .doOnError(sig -> System.out.println(sig))
-            .subscribeOn(Schedulers.boundedElastic())
-            .subscribe();
-
-        return Mono.empty();
+        return userSink.asFlux()
+                .distinct()
+                .flatMap(roomId -> rooms.computeIfAbsent(roomId, id -> new RoomChannel(id, rooms))
+                        .getFlux()
+                )
+                .doFinally(sig -> userSinks.remove(subject));
     }
 
     public Mono<Void> sendMessage(ChatCommand.Chat command) {
         return createDmRoomIfNotExist(command)
-                .then(messageIdGenerator.nextMessageId(command.roomId()))
-                .flatMap(messageId ->
+                .flatMap(isNewRoom -> messageIdGenerator.nextMessageId(command.roomId())
+                    .flatMap(messageId ->
                         Mono.when(
-                                kafkaProducer.publish(command.roomId(), KafkaEvent.Chat.from(messageId, command)),
-                                kafkaProducer.publish(command.roomId(), KafkaEvent.Save.from(messageId, command))
+                            kafkaProducer.publish(command.roomId(), KafkaEvent.Chat.from(messageId, command, isNewRoom)),
+                            kafkaProducer.publish(command.roomId(), KafkaEvent.Save.from(messageId, command))
                         )
-                ).doOnError(e -> System.out.println("Kafka 전송 실패: " + e.getMessage()))
+                        )).doOnError(e -> System.out.println("Kafka 전송 실패: " + e.getMessage()))
                 .onErrorResume(e -> Mono.empty());
     }
 
@@ -88,20 +79,20 @@ public class ChatService {
                 .onErrorResume(e -> Mono.empty());
     }
 
-    public Mono<Void> createDmRoomIfNotExist(ChatCommand.Chat command) {
+    public Mono<Boolean> createDmRoomIfNotExist(ChatCommand.Chat command) {
         if(!RoomType.DM.equals(command.roomType())) return Mono.empty();
         String roomName = command.sender() + "_" + command.receiver();
 
         return roomReadService.existsByRoomId(command.roomId())
                 .flatMap(exist -> {
-                    if (exist) return Mono.empty();
+                    if (exist) return Mono.just(false);
                     return roomWriteService.save(command.roomId(), roomName, command.createdAt())
                             .then(chatMemberWriteService.saveAll(List.of(command.sender(), command.receiver()), command.roomId(), command.createdAt()))
-                            .then(kafkaProducer.publish(command.roomId(), KafkaEvent.Chat.createEvent(command)));
+                            .thenReturn(true);
                 });
     }
 
-    public void sendChatMessageToLocalSubscribers(KafkaEvent.Chat event) {
+    public Mono<Void> sendChatMessageToLocalSubscribers(KafkaEvent.Chat event) {
         ChatMessage model = ChatMessage.builder()
                 .messageId(event.messageId())
                 .messageType(event.messageType())
@@ -119,9 +110,10 @@ public class ChatService {
         if(room != null) {
             room.emit(model);
         }
+        return Mono.empty();
     }
 
-    public void sendReadMessageToLocalSubscribers(KafkaEvent.Chat event) {
+    public Mono<Void> sendReadMessageToLocalSubscribers(KafkaEvent.Chat event) {
         ChatMessage model = ChatMessage.builder()
                 .messageType(event.messageType())
                 .roomId(event.roomId())
@@ -134,13 +126,23 @@ public class ChatService {
         if(room != null) {
             room.emit(model);
         }
+        return Mono.empty();
     }
 
-    public Mono<Void> connectRoomSinkForUser(KafkaEvent.Chat event) {
-        return chatMemberReadService.findAllByRoomId(event.roomId())
+    public Mono<Void> subscribeLocalUsersToRoom(String roomId) {
+        return chatMemberReadService.findAllByRoomId(roomId)
                 .map(ChatMemberEntity::getSubject)
                 .filter(userSinks::containsKey)
-                .flatMap(subject -> connectRoomToUser(event.roomId(), userSinks.get(subject)))
+                .distinct()
+                .flatMap(subject -> subscribeUserToRoom(subject, roomId))
+                .then();
+    }
+
+    public Mono<Void> subscribeUserToRoom(Long subject, String roomId) {
+        Sinks.Many<String> userSink = userSinks.get(subject);
+        if(userSink == null) return Mono.empty();
+
+        return Mono.fromCallable(() -> userSink.tryEmitNext(roomId))
                 .then();
     }
 

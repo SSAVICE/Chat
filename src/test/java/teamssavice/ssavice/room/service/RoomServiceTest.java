@@ -7,7 +7,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import reactor.test.StepVerifier;
 import teamssavice.ssavice.chat.infrastructure.repository.ChatMessageRepository;
-import teamssavice.ssavice.chat.service.dto.ChatModel;
 import teamssavice.ssavice.chatmember.infrastructure.repository.ChatMemberRepository;
 import teamssavice.ssavice.fixture.ChatMemberFixture;
 import teamssavice.ssavice.fixture.ChatMessageFixture;
