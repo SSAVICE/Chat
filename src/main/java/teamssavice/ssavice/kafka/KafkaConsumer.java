@@ -6,7 +6,6 @@ import org.springframework.stereotype.Component;
 import teamssavice.ssavice.chat.MessageType;
 import teamssavice.ssavice.chat.service.ChatService;
 import teamssavice.ssavice.kafka.event.KafkaEvent;
-import teamssavice.ssavice.room.RoomType;
 
 @Component
 @RequiredArgsConstructor
@@ -21,15 +20,14 @@ public class KafkaConsumer {
     public void listen(KafkaEvent.Chat event) {
         System.out.println("consume: " + event.message());
         if(MessageType.READ.equals(event.messageType())) {
-            chatService.sendReadMessageToLocalSubscribers(event);
-            return;
-        }else if (MessageType.CREATE.equals(event.messageType()) && RoomType.DM.equals(event.roomType())) {
-            chatService.connectRoomSinkForUser(event)
-                    .doOnError(e -> System.out.println("RoomSink 연결 오류: " + e.getMessage()))
-                    .subscribe();
+            chatService.sendReadMessageToLocalSubscribers(event).block();
             return;
         }
-        chatService.sendChatMessageToLocalSubscribers(event);
+
+        if(event.isNewRoom()) {
+            chatService.subscribeLocalUsersToRoom(event.roomId()).block();
+        }
+        chatService.sendChatMessageToLocalSubscribers(event).subscribe();
     }
 
     @KafkaListener(
