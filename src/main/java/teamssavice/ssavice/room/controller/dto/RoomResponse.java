@@ -29,6 +29,7 @@ public class RoomResponse {
             Long lastMsgId, // 마지막 채팅 Id
             Long unReadMsgCnt, // 안읽은 메시지 수
             int memberCnt,
+            String lastMsg, // 마지막 메시지
             LocalDateTime lastMsgAt // // 마지막 메시지 시간
     ) {
         public static Room from(RoomModel.Room model) {
@@ -40,6 +41,7 @@ public class RoomResponse {
                     .lastMsgId(model.lastMsgId())
                     .unReadMsgCnt(model.unReadMsgCnt())
                     .memberCnt(model.memberCnt())
+                    .lastMsg(model.lastMsg())
                     .lastMsgAt(model.lastMsgAt())
                     .build();
         }

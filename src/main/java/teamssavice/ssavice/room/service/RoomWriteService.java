@@ -27,9 +27,9 @@ public class RoomWriteService {
                 .onErrorResume(DuplicateKeyException.class, e -> Mono.empty());
     }
 
-    public Mono<Void> updateLastMsgId(String roomId, Long lastMsgId, LocalDateTime lastMsgAt) {
+    public Mono<Void> updateLastMsgId(String roomId, Long lastMsgId, LocalDateTime lastMsgAt, String lastMsg) {
 
-        return roomRepository.updateLastMsgId(roomId, lastMsgId, lastMsgAt)
+        return roomRepository.updateLastMsgId(roomId, lastMsgId, lastMsgAt, lastMsg)
                 .doOnError(e -> System.out.println("Room의 lastMsgId 업데이트 실패: " + e.getMessage()))
                 .then();
     }

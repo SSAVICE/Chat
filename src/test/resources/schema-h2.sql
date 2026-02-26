@@ -6,7 +6,9 @@ CREATE TABLE IF NOT EXISTS room (
     created_at TIMESTAMP NOT NULL,        -- createdAt
     last_service_id BIGINT,               -- Long lastServiceId
     last_msg_id BIGINT,                   -- Long lastMsgId
-    last_msg_at TIMESTAMP                 -- lastMsgAt
+    last_msg_at TIMESTAMP,                -- lastMsgAt
+    last_msg VARCHAR(255)                 -- lastMsg
+
     );
 
 CREATE TABLE IF NOT EXISTS chat_member (

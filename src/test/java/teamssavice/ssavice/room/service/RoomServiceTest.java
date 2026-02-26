@@ -40,8 +40,8 @@ class RoomServiceTest {
 
     @BeforeEach
     void setUp() {
-        RoomEntity room1 = RoomFixture.room(roomId1, "1_2", 3L, now.plusMinutes(4));
-        RoomEntity room2 = RoomFixture.room(roomId2, "1_3", 2L, now.plusMinutes(3));
+        RoomEntity room1 = RoomFixture.room(roomId1, "1_2", 3L, now.plusMinutes(4), "last message");
+        RoomEntity room2 = RoomFixture.room(roomId2, "1_3", 2L, now.plusMinutes(3), "world");
         roomRepository.save(room1).block();
         roomRepository.save(room2).block();
 
@@ -73,6 +73,7 @@ class RoomServiceTest {
                     assertThat(model1.lastMsgAt()).isEqualTo(now.plusMinutes(4));
                     assertThat(model1.unReadMsgCnt()).isEqualTo(2);
                     assertThat(model1.memberCnt()).isEqualTo(1);
+                    assertThat(model1.lastMsg()).isEqualTo("last message");
 
                     RoomModel.Room model2 = rooms.get(1);
                     assertThat(model2.roomId()).isEqualTo(roomId2);
@@ -80,6 +81,7 @@ class RoomServiceTest {
                     assertThat(model2.lastMsgAt()).isEqualTo(now.plusMinutes(3));
                     assertThat(model2.unReadMsgCnt()).isEqualTo(0);
                     assertThat(model2.memberCnt()).isEqualTo(1);
+                    assertThat(model2.lastMsg()).isEqualTo("world");
                 })
                 .verifyComplete();
     }

@@ -20,19 +20,11 @@ public class RoomModel {
             Long lastMsgId, // 마지막 채팅 Id
             Long unReadMsgCnt, // 안읽은 메시지 수
             Integer memberCnt,
+            String lastMsg,
             LocalDateTime lastMsgAt // 마지막 메시지 시간
 
     ) {
-        public static RoomModel.Room from(RoomEntity entity, String roomName) {
-            return Room.builder()
-                    .roomId(entity.getRoomId())
-                    .roomName(roomName)
-                    .roomType(entity.getType())
-                    .build();
-        }
-
         public static RoomModel.Room of(RoomEntity room, int memberCnt, Long lastReadMsgId) {
-
             return Room.builder()
                     .roomId(room.getRoomId())
                     .roomName(room.getRoomName())
@@ -41,6 +33,7 @@ public class RoomModel {
                     .lastMsgId(room.getLastMsgId())
                     .unReadMsgCnt(room.getLastMsgId() - lastReadMsgId)
                     .memberCnt(memberCnt)
+                    .lastMsg(room.getLastMsg())
                     .lastMsgAt(room.getLastMsgAt())
                     .build();
         }

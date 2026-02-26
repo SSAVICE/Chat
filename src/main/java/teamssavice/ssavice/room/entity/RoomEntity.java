@@ -38,4 +38,6 @@ public class RoomEntity {
     private Long lastMsgId = 0L;
 
     private LocalDateTime lastMsgAt;
+
+    private String lastMsg;
 }

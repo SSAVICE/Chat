@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 
 public class RoomFixture {
 
-    public static RoomEntity room(String roomId, String roomName, Long lastMsgId, LocalDateTime lastMsgAt) {
+    public static RoomEntity room(String roomId, String roomName, Long lastMsgId, LocalDateTime lastMsgAt, String lastMsg) {
         return RoomEntity.builder()
                 .roomId(roomId)
                 .roomName(roomName)
@@ -16,6 +16,7 @@ public class RoomFixture {
                 .lastServiceId(null)
                 .lastMsgId(lastMsgId)
                 .lastMsgAt(lastMsgAt)
+                .lastMsg(lastMsg)
                 .build();
     }
 }
