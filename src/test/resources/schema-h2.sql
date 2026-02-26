@@ -33,3 +33,23 @@ CREATE TABLE IF NOT EXISTS chat_message (
     message VARCHAR(255),      		        -- String sender
     created_at TIMESTAMP NOT NULL           -- createdAt
     );
+
+CREATE TABLE IF NOT EXISTS account (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,           -- @Id Long id
+    provider_id VARCHAR(255) NOT NULL,              -- providerId
+    role VARCHAR(20) NOT NULL                       -- role
+);
+
+CREATE TABLE IF NOT EXISTS users (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,            -- @Id Long id
+    is_deleted BIT(1) NOT NULL,                      -- isDeleted
+    image_resource_id BIGINT UNIQUE,                 -- imageResourceId
+    name VARCHAR(255) NOT NULL                       -- name
+);
+
+CREATE TABLE IF NOT EXISTS company (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,           -- @Id Long id
+    is_deleted BIT(1) NOT NULL,                     -- isDeleted
+    image_resource_id BIGINT UNIQUE,                -- imageResourceId
+    company_name VARCHAR(255) NOT NULL             -- companyName
+);
