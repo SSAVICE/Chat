@@ -1,23 +1,18 @@
 version: '3.8'
 
 services:
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.5.0
-    container_name: zookeeper
+  chat:
+    container_name: ssavice-chat
+    image: hjinshin/ssavice-chat:latest
     ports:
-      - "2181:2181"
+      - "8080:8080" # EC2 8080 - 컨테이너 8080
     environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-
-  kafka:
-    image: confluentinc/cp-kafka:7.5.0
-    container_name: kafka
-    ports:
-      - "9092:9092"
-    depends_on:
-      - zookeeper
-    environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_SERVER_URL: ${KAFKA_SERVER_URL}
+      CHAT_DB_URL: ${CHAT_DB_URL}
+      CHAT_DB_USERNAME: ${CHAT_DB_USERNAME}
+      CHAT_DB_PASSWORD: ${CHAT_DB_PASSWORD}
+      CHAT_SERVER_ID: ${CHAT_SERVER_ID1}
+      TZ: Asia/Seoul
+    stop_grace_period: 30s
+    # 항상 최신
+    pull_policy: always
