@@ -12,6 +12,8 @@ services:
       CHAT_DB_USERNAME: ${CHAT_DB_USERNAME}
       CHAT_DB_PASSWORD: ${CHAT_DB_PASSWORD}
       CHAT_SERVER_ID: ${CHAT_SERVER_ID1}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
       TZ: Asia/Seoul
     stop_grace_period: 30s
     # 항상 최신
