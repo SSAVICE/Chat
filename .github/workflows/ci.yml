@@ -11,11 +11,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️. 코드 체크아웃
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # 2️. JDK 세팅 (Spring Boot / Java)
       - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
@@ -27,6 +25,9 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build with Gradle
+        run: ./gradlew clean build -x test
 
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
