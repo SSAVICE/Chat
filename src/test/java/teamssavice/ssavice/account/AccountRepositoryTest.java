@@ -5,7 +5,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.data.r2dbc.DataR2dbcTest;
-import org.springframework.test.annotation.DirtiesContext;
 import reactor.test.StepVerifier;
 import teamssavice.ssavice.account.infrastructure.repository.AccountRepository;
 import teamssavice.ssavice.account.infrastructure.repository.CompanyRepository;
@@ -15,7 +14,6 @@ import teamssavice.ssavice.global.constants.Role;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DataR2dbcTest
-@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_EACH_TEST_METHOD)
 class AccountRepositoryTest {
 
     @Autowired
@@ -32,23 +30,15 @@ class AccountRepositoryTest {
 
     @BeforeEach
     void setUp() {
-        AccountEntity account1 = AccountEntity.builder()
-                .providerId("provider1")
-                .role(Role.USER)
-                .build();
-        AccountEntity account2 = AccountEntity.builder()
-                .providerId("provider1")
-                .role(Role.COMPANY)
-                .build();
+        accountRepository.deleteAll().block();
+        userRepository.deleteAll().block();
+        companyRepository.deleteAll().block();
 
-        UserEntity user = UserEntity.builder()
-                .id(account1.getId())
-                .name("user")
-                .build();
-        CompanyEntity company = CompanyEntity.builder()
-                .id(account2.getId())
-                .companyName("name")
-                .build();
+        AccountEntity account1 = AccountEntity.builder().providerId("provider1").role(Role.USER).build();
+        AccountEntity account2 = AccountEntity.builder().providerId("provider1").role(Role.COMPANY).build();
+
+        UserEntity user = UserEntity.builder().id(account1.getId()).name("user").build();
+        CompanyEntity company = CompanyEntity.builder().id(account2.getId()).companyName("name").build();
 
         this.account1 = accountRepository.save(account1).block();
         this.account2 = accountRepository.save(account2).block();

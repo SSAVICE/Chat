@@ -39,8 +39,8 @@ jobs:
 
       # 5. 의존성 다운로드
       - name: Build with Gradle
-        run: ./gradlew build --no-daemon
+        run: ./gradlew build --scan
 
       # 6. 테스트 실행
       - name: Run tests
-        run: ./gradlew test --no-daemon
+        run: ./gradlew test --scan

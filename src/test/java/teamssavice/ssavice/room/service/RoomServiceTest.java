@@ -40,6 +40,10 @@ class RoomServiceTest {
 
     @BeforeEach
     void setUp() {
+        chatMemberRepository.deleteAll().block();
+        roomRepository.deleteAll().block();
+        chatMessageRepository.deleteAll().block();
+
         RoomEntity room1 = RoomFixture.room(roomId1, "1_2", 3L, now.plusMinutes(4), "last message");
         RoomEntity room2 = RoomFixture.room(roomId2, "1_3", 2L, now.plusMinutes(3), "world");
         roomRepository.save(room1).block();
