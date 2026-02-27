@@ -6,6 +6,7 @@ import teamssavice.ssavice.room.service.dto.RoomModel;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 public class RoomResponse {
 
@@ -53,8 +54,7 @@ public class RoomResponse {
             String roomName,
             RoomType roomType,
             Long serviceId,
-            List<Long> lastReadMsgIds,
-            List<Long> memberIds
+            Map<Long, Long> members
     ) {
         public static Detail from(RoomModel.Detail model) {
             return Detail.builder()
@@ -62,8 +62,7 @@ public class RoomResponse {
                     .roomName(model.roomName())
                     .roomType(model.roomType())
                     .serviceId(model.serviceId())
-                    .lastReadMsgIds(model.lastReadMsgIds())
-                    .memberIds(model.memberIds())
+                    .members(model.members())
                     .build();
         }
     }

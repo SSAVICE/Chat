@@ -6,8 +6,9 @@ import teamssavice.ssavice.room.RoomType;
 import teamssavice.ssavice.room.entity.RoomEntity;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class RoomModel {
 
@@ -45,24 +46,20 @@ public class RoomModel {
             String roomName,
             RoomType roomType,
             Long serviceId,
-            List<Long> lastReadMsgIds,
-            List<Long> memberIds
+            Map<Long, Long> members
     ) {
         public static RoomModel.Detail of(RoomEntity room, List<ChatMemberEntity> members) {
-            List<Long> memberIds = new ArrayList<>(members.size());
-            List<Long> lastReadMsgIds = new ArrayList<>(members.size());
+            Map<Long, Long> states = new HashMap<>(members.size());
             for (ChatMemberEntity member : members) {
-                memberIds.add(member.getSubject());
-                lastReadMsgIds.add(member.getLastReadMsgId());
+                states.put(member.getSubject(), member.getLastReadMsgId());
             }
 
-            return RoomModel.Detail.builder()
+            return Detail.builder()
                     .roomId(room.getRoomId())
                     .roomName(room.getRoomName())
                     .roomType(room.getType())
                     .serviceId(room.getLastServiceId())
-                    .memberIds(memberIds)
-                    .lastReadMsgIds(lastReadMsgIds)
+                    .members(states)
                     .build();
         }
     }
