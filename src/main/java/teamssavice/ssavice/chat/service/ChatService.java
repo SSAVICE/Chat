@@ -118,7 +118,7 @@ public class ChatService {
                 .messageType(event.messageType())
                 .roomId(event.roomId())
                 .sender(event.sender())
-                .readMsgIds(event.readMsgIds())
+                .readMsgId(event.readMsgId())
                 .build();
 
         String roomId = event.roomId();

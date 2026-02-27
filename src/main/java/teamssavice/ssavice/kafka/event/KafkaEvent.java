@@ -20,7 +20,7 @@ public class KafkaEvent {
          String message,
          Long serviceId,
          LocalDateTime createdAt,
-         Long[] readMsgIds,
+         Long readMsgId,
          boolean isNewRoom
     ) {
         public static Chat from(Long messageId, ChatCommand.Chat command, boolean isNewRoom) {
@@ -43,7 +43,7 @@ public class KafkaEvent {
                     .messageType(command.messageType())
                     .roomId(command.roomId())
                     .sender(command.sender())
-                    .readMsgIds(command.readMsgIds())
+                    .readMsgId(command.readMsgId())
                     .build();
         }
     }

@@ -47,14 +47,14 @@ public class ChatCommand {
             MessageType messageType,
             String roomId,
             Long sender,
-            Long[] readMsgIds
+            Long readMsgId
     ) {
         public static Read from(WebSocketRequest request, Long sender) {
             return Read.builder()
                     .messageType(request.getMessageType())
                     .roomId(request.getRoomId())
                     .sender(sender)
-                    .readMsgIds(request.getReadMsgIds())
+                    .readMsgId(request.getReadMsgId())
                     .build();
         }
     }
