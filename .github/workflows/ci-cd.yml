@@ -1,4 +1,4 @@
-name: Java CI Build and Test
+name: Java CI Build and Deploy
 
 on:
   push:
