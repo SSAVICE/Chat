@@ -1,6 +1,7 @@
 package teamssavice.ssavice.room.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
@@ -10,6 +11,7 @@ import teamssavice.ssavice.room.infrastructure.repository.RoomRepository;
 
 import java.time.LocalDateTime;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RoomWriteService {
@@ -30,7 +32,7 @@ public class RoomWriteService {
     public Mono<Void> updateLastMsgId(String roomId, Long lastMsgId, LocalDateTime lastMsgAt, String lastMsg) {
 
         return roomRepository.updateLastMsgId(roomId, lastMsgId, lastMsgAt, lastMsg)
-                .doOnError(e -> System.out.println("Room의 lastMsgId 업데이트 실패: " + e.getMessage()))
+                .doOnError(e -> log.error("Room의 lastMsgId 업데이트 실패: {}", e.getMessage(), e))
                 .then();
     }
 }

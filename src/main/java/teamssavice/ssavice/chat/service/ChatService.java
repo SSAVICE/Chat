@@ -1,6 +1,7 @@
 package teamssavice.ssavice.chat.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
@@ -22,6 +23,7 @@ import teamssavice.ssavice.room.service.RoomWriteService;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ChatService {
@@ -45,7 +47,7 @@ public class ChatService {
                 .map(ChatMemberEntity::getRoomId)
                 .subscribe(
                         userSink::tryEmitNext,
-                        error -> System.out.println("userSink에 emit 실패: " + error)
+                        e -> log.error("userSink에 emit 실패: {}", e.getMessage(), e)
                 );
 
         return userSink.asFlux()
@@ -63,14 +65,14 @@ public class ChatService {
                             kafkaProducer.publish(command.roomId(), KafkaEvent.Chat.from(messageId, command, isNewRoom)),
                             kafkaProducer.publish(command.roomId(), KafkaEvent.Save.from(messageId, command))
                         )
-                        ).doOnError(e -> System.out.println("Kafka 전송 실패: " + e.getMessage()))
+                        ).doOnError(e -> log.error("Kafka 전송 실패: {}", e.getMessage(), e))
                 .onErrorResume(e -> Mono.empty());
     }
 
     public Mono<Void> readMessage(ChatCommand.Read command) {
         return chatMemberWriteService.updateLastReadMsgIdIfGreater(command)
                 .then(kafkaProducer.publish(command.roomId(), KafkaEvent.Chat.from(command)))
-                .doOnError(e -> System.out.println("Read 처리 실패: " + e.getMessage()))
+                .doOnError(e -> log.error("Read 처리 실패: {}", e.getMessage(), e))
                 .onErrorResume(e -> Mono.empty());
     }
 

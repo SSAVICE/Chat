@@ -1,6 +1,7 @@
 package teamssavice.ssavice.room.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Mono;
@@ -18,6 +19,7 @@ import teamssavice.ssavice.room.service.dto.RoomQueryResult;
 
 import java.util.*;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RoomService {
@@ -99,7 +101,7 @@ public class RoomService {
                     return roomWriteService.save(roomId, roomName, roomType)
                             .then(chatMemberWriteService.saveAll(subjects, roomId))
                             .thenReturn(true);
-                }).doOnError(e -> System.out.println("방 생성 실패: " + e.getMessage()));
+                }).doOnError(e -> log.error("방 생성 실패: {}", e.getMessage(), e));
     }
 
     private Mono<Void> verifyMember(List<ChatMemberEntity> members, Long subject) {

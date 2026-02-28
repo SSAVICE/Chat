@@ -1,6 +1,7 @@
 package teamssavice.ssavice.kafka;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import teamssavice.ssavice.chat.service.ChatService;
@@ -9,6 +10,7 @@ import teamssavice.ssavice.room.service.RoomService;
 
 import java.util.List;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class KafkaConsumer {
@@ -21,7 +23,7 @@ public class KafkaConsumer {
             groupId = "chat-server-${kafka.server-id}"
     )
     public void listen(KafkaEvent.Chat event) {
-        System.out.println("consume: " + event.message());
+        log.info("consume: {}", event.message());
         if(event.isNewRoom()) {
             chatService.subscribeLocalUsersToRoom(event.roomId()).block();
         }

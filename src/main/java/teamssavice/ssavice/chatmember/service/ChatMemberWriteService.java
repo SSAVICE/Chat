@@ -1,6 +1,7 @@
 package teamssavice.ssavice.chatmember.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
@@ -11,6 +12,7 @@ import teamssavice.ssavice.chatmember.infrastructure.repository.ChatMemberReposi
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ChatMemberWriteService {
@@ -48,7 +50,7 @@ public class ChatMemberWriteService {
     public Mono<Void> updateLastReadMsgIdIfGreater(ChatCommand.Read command) {
 
         return chatMemberRepository.updateLastReadMsgIdIfGreater(command.roomId(), command.sender(), command.readMsgId())
-                .doOnError(e -> System.out.println("마지막 메시지 기록 저장 실패: " + e.getMessage()))
+                .doOnError(e -> log.error("마지막 메시지 기록 저장 실패: {}", e.getMessage(), e))
                 .then();
     }
 }

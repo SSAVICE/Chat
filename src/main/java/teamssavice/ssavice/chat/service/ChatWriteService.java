@@ -1,12 +1,14 @@
 package teamssavice.ssavice.chat.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 import teamssavice.ssavice.chat.entity.ChatMessageEntity;
 import teamssavice.ssavice.chat.infrastructure.repository.ChatMessageRepository;
 import teamssavice.ssavice.chat.service.dto.ChatCommand;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ChatWriteService {
@@ -25,7 +27,7 @@ public class ChatWriteService {
                 .build();
 
         return chatMessageRepository.save(entity)
-                .doOnError(e -> System.out.println("메시지 저장 실패: " + e.getMessage()))
+                .doOnError(e -> log.error("메시지 저장 실패: {}", e.getMessage(), e))
                 .then();
     }
 }
