@@ -74,4 +74,18 @@ public class KafkaEvent {
                     .build();
         }
     }
+
+    @Builder
+    public record Join(
+            MessageType messageType,
+            RoomType roomType,
+            String roomId,
+            String roomName,
+            Long sender,
+            String message,
+            LocalDateTime createdAt,
+            boolean isNewRoom
+    ) {
+
+    }
 }

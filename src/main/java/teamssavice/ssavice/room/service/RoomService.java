@@ -4,11 +4,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Mono;
+import teamssavice.ssavice.chat.service.dto.ChatCommand;
 import teamssavice.ssavice.chatmember.entity.ChatMemberEntity;
 import teamssavice.ssavice.chatmember.service.ChatMemberReadService;
+import teamssavice.ssavice.chatmember.service.ChatMemberWriteService;
 import teamssavice.ssavice.global.constants.ErrorCode;
 import teamssavice.ssavice.global.dto.Auth;
 import teamssavice.ssavice.global.exception.ForbiddenException;
+import teamssavice.ssavice.room.RoomType;
 import teamssavice.ssavice.room.entity.RoomEntity;
 import teamssavice.ssavice.room.service.dto.RoomModel;
 import teamssavice.ssavice.room.service.dto.RoomQueryResult;
@@ -18,8 +21,10 @@ import java.util.*;
 @Service
 @RequiredArgsConstructor
 public class RoomService {
-    private final RoomReadService roomReadService;
     private final ChatMemberReadService chatMemberReadService;
+    private final ChatMemberWriteService chatMemberWriteService;
+    private final RoomReadService roomReadService;
+    private final RoomWriteService roomWriteService;
 
     @Transactional(readOnly = true)
     public Mono<List<RoomModel.Room>> findAllRooms(Auth auth) {
@@ -77,6 +82,24 @@ public class RoomService {
                     return verifyMember(members, auth.subject())
                             .then(Mono.just(RoomModel.Detail.of(room, members)));
                 });
+    }
+
+    public Mono<Boolean> createDMRoomIfNotExist(ChatCommand.Chat command) {
+        if(!RoomType.DM.equals(command.roomType())) return Mono.just(false);
+        String roomName = command.sender() + "_" + command.receiver();
+
+        return createRoomIfNotExist(command.roomId(), roomName, command.roomType(), List.of(command.sender(), command.receiver()));
+    }
+
+    public Mono<Boolean> createRoomIfNotExist(String roomId, String roomName, RoomType roomType, List<Long> subjects) {
+
+        return roomReadService.existsByRoomId(roomId)
+                .flatMap(exist -> {
+                    if (exist) return Mono.just(false);
+                    return roomWriteService.save(roomId, roomName, roomType)
+                            .then(chatMemberWriteService.saveAll(subjects, roomId))
+                            .thenReturn(true);
+                }).doOnError(e -> System.out.println("방 생성 실패: " + e.getMessage()));
     }
 
     private Mono<Void> verifyMember(List<ChatMemberEntity> members, Long subject) {

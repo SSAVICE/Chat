@@ -15,12 +15,12 @@ import java.time.LocalDateTime;
 public class RoomWriteService {
     private final RoomRepository roomRepository;
 
-    public Mono<RoomEntity> save(String roomId, String roomName, LocalDateTime createdAt) {
+    public Mono<RoomEntity> save(String roomId, String roomName, RoomType roomType) {
         RoomEntity entity = RoomEntity.builder()
                 .roomId(roomId)
                 .roomName(roomName)
-                .type(RoomType.DM)
-                .createdAt(createdAt)
+                .type(roomType)
+                .createdAt(LocalDateTime.now())
                 .build();
 
         return roomRepository.save(entity)

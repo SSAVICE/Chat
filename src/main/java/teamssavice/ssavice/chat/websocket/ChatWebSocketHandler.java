@@ -13,6 +13,7 @@ import teamssavice.ssavice.chat.MessageType;
 import teamssavice.ssavice.chat.service.ChatService;
 import teamssavice.ssavice.chat.service.dto.ChatCommand;
 import teamssavice.ssavice.chat.websocket.dto.WebSocketRequest;
+import teamssavice.ssavice.room.service.RoomService;
 
 
 @Slf4j
@@ -22,6 +23,7 @@ public class ChatWebSocketHandler implements WebSocketHandler {
 
     private final ObjectMapper objectMapper;
     private final ChatService chatService;
+    private final RoomService roomService;
 
     @Override
     public Mono<Void> handle(WebSocketSession session) {
@@ -43,7 +45,10 @@ public class ChatWebSocketHandler implements WebSocketHandler {
                         if(MessageType.READ.equals(req.getMessageType())) {
                             return chatService.readMessage(ChatCommand.Read.from(req, subject));
                         }
-                        return chatService.sendMessage(ChatCommand.Chat.from(req, subject));
+                        ChatCommand.Chat command = ChatCommand.Chat.from(req, subject);
+
+                        return roomService.createDMRoomIfNotExist(command)
+                                .flatMap(isNewRoom -> chatService.sendMessage(command, isNewRoom));
                     })
                     .doFinally(signal -> log.info("Input Flux 종료: {}", signal))
                     .then();

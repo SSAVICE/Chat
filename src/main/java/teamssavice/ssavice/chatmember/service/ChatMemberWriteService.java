@@ -16,17 +16,31 @@ import java.util.List;
 public class ChatMemberWriteService {
     private final ChatMemberRepository chatMemberRepository;
 
-    public Mono<Void> saveAll(List<Long> subjects, String roomId, LocalDateTime createdAt) {
+    public Mono<Void> saveAll(List<Long> subjects, String roomId) {
+        LocalDateTime now = LocalDateTime.now();
         List<ChatMemberEntity> members = subjects.stream()
                 .map(subject -> ChatMemberEntity.builder()
                         .roomId(roomId)
                         .subject(subject)
-                        .joinedAt(createdAt)
+                        .joinedAt(now)
                         .lastReadMsgId(0L)
                         .build())
                 .toList();
 
         return chatMemberRepository.saveAll(members)
+                .onErrorResume(DuplicateKeyException.class, e -> Mono.empty())
+                .then();
+    }
+
+    public Mono<Void> save(Long subject, String roomId, LocalDateTime createdAt) {
+        ChatMemberEntity entity = ChatMemberEntity.builder()
+                .roomId(roomId)
+                .subject(subject)
+                .joinedAt(createdAt)
+                .lastReadMsgId(0L)
+                .build();
+
+        return chatMemberRepository.save(entity)
                 .onErrorResume(DuplicateKeyException.class, e -> Mono.empty())
                 .then();
     }
