@@ -11,7 +11,7 @@ public class RoomChannel {
     private final Flux<ChatMessage> flux;
 
     public RoomChannel(String roomId, Map<String, RoomChannel> rooms) {
-        this.sink = Sinks.many().replay().limit(1);
+        this.sink = Sinks.many().multicast().onBackpressureBuffer();
         this.flux = sink.asFlux()
                 .doFinally(sig -> {
                     if (sink.currentSubscriberCount() == 0) {
