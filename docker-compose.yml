@@ -14,6 +14,7 @@ services:
       CHAT_SERVER_ID: ${CHAT_SERVER_ID1}
       REDIS_HOST: ${REDIS_HOST}
       REDIS_PORT: ${REDIS_PORT}
+      IS_REDIS_SSL: ${IS_REDIS_SSL}
       TZ: Asia/Seoul
     stop_grace_period: 30s
     # 항상 최신
