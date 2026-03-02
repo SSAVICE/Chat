@@ -3,6 +3,7 @@ package teamssavice.ssavice.chat.service.dto;
 import lombok.Builder;
 import teamssavice.ssavice.chat.CursorDirection;
 import teamssavice.ssavice.chat.MessageType;
+import teamssavice.ssavice.chat.SubscribeType;
 import teamssavice.ssavice.chat.websocket.dto.WebSocketRequest;
 import teamssavice.ssavice.room.RoomType;
 
@@ -66,6 +67,12 @@ public class ChatCommand {
             String roomId,
             Integer size
     ) {
+    }
 
+    @Builder
+    public record Subscribe(
+        String roomId,
+        SubscribeType subscribeType
+    ){
     }
 }

@@ -8,6 +8,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 import teamssavice.ssavice.chat.ChatMessage;
+import teamssavice.ssavice.chat.SubscribeType;
 import teamssavice.ssavice.chat.service.dto.ChatCommand;
 import teamssavice.ssavice.chat.service.dto.ChatModel;
 import teamssavice.ssavice.chatmember.entity.ChatMemberEntity;
@@ -20,6 +21,7 @@ import teamssavice.ssavice.redis.MessageIdGenerator;
 import teamssavice.ssavice.room.infrastructure.RoomChannel;
 import teamssavice.ssavice.room.service.RoomWriteService;
 
+import java.util.HashSet;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -36,24 +38,34 @@ public class ChatService {
     private final ChatMemberWriteService chatMemberWriteService;
     private final ChatMemberReadService chatMemberReadService;
 
-    private final Map<Long, Sinks.Many<String>> userSinks = new ConcurrentHashMap<>(); // User가 roomId를 emit하는 용도
+    private final Map<Long, Sinks.Many<ChatCommand.Subscribe>> userSinks = new ConcurrentHashMap<>(); // User가 roomId를 emit하는 용도
     private final Map<String, RoomChannel> rooms = new ConcurrentHashMap<>();
 
     public Flux<ChatMessage> registerUser(Long subject) {
-        Sinks.Many<String> userSink = Sinks.many().unicast().onBackpressureBuffer();
+        Sinks.Many<ChatCommand.Subscribe> userSink = Sinks.many().unicast().onBackpressureBuffer();
         userSinks.put(subject, userSink);
 
         chatMemberReadService.findAllBySubject(subject)
                 .map(ChatMemberEntity::getRoomId)
                 .subscribe(
-                        userSink::tryEmitNext,
+                        roomId -> userSink.tryEmitNext(new ChatCommand.Subscribe(roomId, SubscribeType.SUBSCRIBE)),
                         e -> log.error("userSink에 emit 실패: {}", e.getMessage(), e)
                 );
 
         return userSink.asFlux()
-                .distinct()
-                .flatMap(roomId -> rooms.computeIfAbsent(roomId, id -> new RoomChannel(id, rooms))
-                        .getFlux()
+                .scan(new HashSet<String>(), (activeRooms, cmd) -> {
+                    if (SubscribeType.SUBSCRIBE.equals(cmd.subscribeType())) {
+                        activeRooms.add(cmd.roomId());
+                    } else {
+                        activeRooms.remove(cmd.roomId());
+                    }
+                    return new HashSet<>(activeRooms);
+                })
+                .switchMap(activeRooms ->
+                        Flux.merge(
+                                activeRooms.stream()
+                                        .map(roomId -> rooms.computeIfAbsent(roomId, id -> new RoomChannel(id, rooms)).getFlux())
+                                        .toList())
                 )
                 .doFinally(sig -> userSinks.remove(subject));
     }
@@ -108,10 +120,18 @@ public class ChatService {
     }
 
     public Mono<Void> subscribeUserToRoom(Long subject, String roomId) {
-        Sinks.Many<String> userSink = userSinks.get(subject);
+        Sinks.Many<ChatCommand.Subscribe> userSink = userSinks.get(subject);
         if(userSink == null) return Mono.empty();
 
-        return Mono.fromCallable(() -> userSink.tryEmitNext(roomId))
+        return Mono.fromCallable(() -> userSink.tryEmitNext(new ChatCommand.Subscribe(roomId, SubscribeType.SUBSCRIBE)))
+                .then();
+    }
+
+    public Mono<Void> unsubscribeUserToRoom(Long subject, String roomId) {
+        Sinks.Many<ChatCommand.Subscribe> userSink = userSinks.get(subject);
+        if(userSink == null) return Mono.empty();
+
+        return Mono.fromCallable(() -> userSink.tryEmitNext(new ChatCommand.Subscribe(roomId, SubscribeType.UNSUBSCRIBE)))
                 .then();
     }
 

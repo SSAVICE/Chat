@@ -27,4 +27,6 @@ public interface ChatMemberRepository extends R2dbcRepository<ChatMemberEntity, 
     Flux<ChatMemberEntity> findAllByRoomIdIn(List<String> roomIds);
 
     Mono<Boolean> existsByRoomIdAndSubject(String roomId, Long subject);
+
+    Mono<Long> deleteByRoomIdAndSubject(String roomId, Long subject);
 }

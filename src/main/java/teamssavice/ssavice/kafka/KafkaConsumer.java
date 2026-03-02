@@ -4,7 +4,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Mono;
 import teamssavice.ssavice.chat.service.ChatService;
+import teamssavice.ssavice.chatmember.service.ChatMemberService;
 import teamssavice.ssavice.kafka.event.KafkaEvent;
 import teamssavice.ssavice.room.service.RoomService;
 
@@ -17,6 +19,7 @@ public class KafkaConsumer {
 
     private final ChatService chatService;
     private final RoomService roomService;
+    private final ChatMemberService chatMemberService;
 
     @KafkaListener(
             topics = "${kafka.chat-topic}",
@@ -45,8 +48,21 @@ public class KafkaConsumer {
             groupId = "chat-server-join-group"
     )
     public void listen(KafkaEvent.Join event) {
-        roomService.createRoomIfNotExist(event.roomId(), event.roomName(), event.roomType(), List.of(event.sender()))
-                .then(chatService.subscribeLocalUsersToRoom(event.roomId()))
-                .block();
+        handleJoinEvent(event).block();
+
+    }
+
+    private Mono<Void> handleJoinEvent(KafkaEvent.Join event) {
+        return switch (event.messageType()) {
+            case CREATE -> roomService.createRoomIfNotExist(event.roomId(), event.roomName(), event.roomType(), List.of(event.sender()))
+                    .then(chatService.subscribeLocalUsersToRoom(event.roomId()));
+
+            case JOIN -> chatService.subscribeLocalUsersToRoom(event.roomId());
+
+            case LEAVE -> chatMemberService.leaveRoom(event.roomId(), event.sender())
+                    .then(chatService.unsubscribeUserToRoom(event.sender(), event.roomId()));
+
+            default -> Mono.empty();
+        };
     }
 }

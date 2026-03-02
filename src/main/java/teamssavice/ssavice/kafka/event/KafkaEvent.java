@@ -83,8 +83,7 @@ public class KafkaEvent {
             String roomName,
             Long sender,
             String message,
-            LocalDateTime createdAt,
-            boolean isNewRoom
+            LocalDateTime createdAt
     ) {
 
     }

@@ -6,6 +6,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record KafkaProperties(
         String chatTopic,
         String saveTopic,
-        String readTopic
+        String joinTopic
 ) {
 }

@@ -20,4 +20,20 @@ public class KafkaConfig {
                 .replicas(1)
                 .build();
     }
+
+    @Bean
+    public NewTopic saveTopic() {
+        return TopicBuilder.name(kafkaProperties.saveTopic())
+                .partitions(3)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic joinTopic() {
+        return TopicBuilder.name(kafkaProperties.joinTopic())
+                .partitions(3)
+                .replicas(1)
+                .build();
+    }
 }
