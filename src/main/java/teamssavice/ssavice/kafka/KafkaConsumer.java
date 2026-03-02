@@ -53,11 +53,13 @@ public class KafkaConsumer {
     }
 
     private Mono<Void> handleJoinEvent(KafkaEvent.Join event) {
+        log.info("consume {}: {}", event.messageType(), event.roomId());
         return switch (event.messageType()) {
             case CREATE -> roomService.createRoomIfNotExist(event.roomId(), event.roomName(), event.roomType(), List.of(event.sender()))
                     .then(chatService.subscribeLocalUsersToRoom(event.roomId()));
 
-            case JOIN -> chatService.subscribeLocalUsersToRoom(event.roomId());
+            case JOIN -> chatMemberService.joinRoom(event.roomId(), event.sender(), event.createdAt())
+                            .then(chatService.subscribeLocalUsersToRoom(event.roomId()));
 
             case LEAVE -> chatMemberService.leaveRoom(event.roomId(), event.sender())
                     .then(chatService.unsubscribeUserToRoom(event.sender(), event.roomId()));
