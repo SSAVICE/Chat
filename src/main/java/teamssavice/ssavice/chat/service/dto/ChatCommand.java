@@ -26,7 +26,7 @@ public class ChatCommand {
             return Chat.builder()
                     .messageType(request.getMessageType())
                     .roomType(request.getRoomType())
-                    .roomId(RoomType.DM.equals(request.getRoomType())
+                    .roomId( RoomType.DM.equals(request.getRoomType()) && "".equals(request.getRoomId())
                         ? generateDMRoomId(sender, request.getReceiver())
                         : request.getRoomId()
                     ).receiver(request.getReceiver())
