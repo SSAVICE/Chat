@@ -15,6 +15,7 @@ services:
       REDIS_HOST: ${REDIS_HOST}
       REDIS_PORT: ${REDIS_PORT}
       IS_REDIS_SSL: ${IS_REDIS_SSL}
+      DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL}
       TZ: Asia/Seoul
     stop_grace_period: 30s
     # 항상 최신

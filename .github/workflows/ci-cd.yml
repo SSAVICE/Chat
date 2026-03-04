@@ -54,6 +54,7 @@ jobs:
           echo "REDIS_HOST=${{ secrets.REDIS_HOST }}" >> .env
           echo "REDIS_PORT=${{ secrets.REDIS_PORT }}" >> .env
           echo "IS_REDIS_SSL=${{ secrets.IS_REDIS_SSL }}" >> .env
+          echo "DISCORD_WEBHOOK_URL=${{ secrets.DISCORD_WEBHOOK_URL }}" >> .env
           cat .env
 
       # 핵심: 로컬의 docker-compose.yml 과 env 를 EC2로 복사
