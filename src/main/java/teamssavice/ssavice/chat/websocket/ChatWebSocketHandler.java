@@ -78,9 +78,13 @@ public class ChatWebSocketHandler implements WebSocketHandler {
                                         return Mono.empty();
                                     })
                     )
-                    .doFinally(signal -> log.info("output Flux 종료: {}", signal));
+                    .doFinally(signal -> {
+                        pongSink.tryEmitComplete();
+                        errorSink.tryEmitComplete();
+                        log.info("output Flux 종료: {}", signal);
+                    });
 
-            // 채팅 메시지(output)와 PONG 응답(pongSink)를 하나로 병합
+            // 채팅 메시지(output)와 PONG 응답(pongSink), Error 응답(errorSink)를 하나로 병합
             Flux<WebSocketMessage> combinedOutput = Flux.merge(
                     output,
                     errorSink.asFlux(),
