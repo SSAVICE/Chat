@@ -3,7 +3,6 @@ package teamssavice.ssavice.room.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Mono;
 import teamssavice.ssavice.chat.service.dto.ChatCommand;
 import teamssavice.ssavice.chatmember.entity.ChatMemberEntity;
@@ -28,7 +27,6 @@ public class RoomService {
     private final RoomReadService roomReadService;
     private final RoomWriteService roomWriteService;
 
-    @Transactional(readOnly = true)
     public Mono<List<RoomModel.Room>> findAllRooms(Auth auth) {
 
         return getMyMemberMap(auth.subject())
@@ -70,7 +68,6 @@ public class RoomService {
         }).toList();
     }
 
-    @Transactional(readOnly = true)
     public Mono<RoomModel.Detail> getRoomDetail(String roomId, Auth auth) {
 
         Mono<RoomEntity> roomMono = roomReadService.findByRoomId(roomId);

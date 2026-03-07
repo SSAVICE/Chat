@@ -20,6 +20,7 @@ public class KafkaConsumer {
     private final ChatService chatService;
     private final RoomService roomService;
     private final ChatMemberService chatMemberService;
+    private final KafkaProducer kafkaProducer;
 
     @KafkaListener(
             topics = "${kafka.chat-topic}",
@@ -53,16 +54,37 @@ public class KafkaConsumer {
     }
 
     private Mono<Void> handleJoinEvent(KafkaEvent.Join event) {
-        log.info("consume {}: {}", event.messageType(), event.roomId());
+        log.info("consume Join Event {}: {}", event.messageType(), event.roomId());
         return switch (event.messageType()) {
             case CREATE -> roomService.createRoomIfNotExist(event.roomId(), event.roomName(), event.roomType(), List.of(event.sender()))
-                    .then(chatService.subscribeLocalUsersToRoom(event.roomId()));
+                    .then(kafkaProducer.publish(event.roomId(), event.toSyncEvent()));
 
             case JOIN -> chatMemberService.joinRoom(event.roomId(), event.sender(), event.createdAt())
-                            .then(chatService.subscribeLocalUsersToRoom(event.roomId()));
+                            .then(kafkaProducer.publish(event.roomId(), event.toSyncEvent()));
 
             case LEAVE -> chatMemberService.leaveRoom(event.roomId(), event.sender())
-                    .then(chatService.unsubscribeUserToRoom(event.sender(), event.roomId()));
+                    .then(kafkaProducer.publish(event.roomId(), event.toSyncEvent()));
+
+            default -> Mono.empty();
+        };
+    }
+
+    @KafkaListener(
+            topics = "${kafka.sync-topic}",
+            groupId = "chat-server-sync-${kafka.server-id}"
+    )
+    public void listen(KafkaEvent.Sync event) {
+        if(chatService.userConnectedLocally(event.sender())) {
+            log.info("consume Sync Event {}: {}", event.messageType(), event.roomId());
+            handleSyncEvent(event).subscribe();
+        }
+    }
+
+    private Mono<Void> handleSyncEvent(KafkaEvent.Sync event) {
+        return switch (event.messageType()) {
+            case CREATE, JOIN -> chatService.subscribeLocalUsersToRoom(event.roomId());
+
+            case LEAVE -> chatService.unsubscribeUserToRoom(event.sender(), event.roomId());
 
             default -> Mono.empty();
         };

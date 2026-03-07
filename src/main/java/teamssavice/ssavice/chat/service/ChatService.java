@@ -3,7 +3,6 @@ package teamssavice.ssavice.chat.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
@@ -135,7 +134,6 @@ public class ChatService {
                 .then();
     }
 
-    @Transactional
     public Mono<Void> saveMessageAndUpdateRoom(KafkaEvent.Save event) {
         ChatCommand.Chat command = ChatCommand.Chat.builder()
                 .messageId(event.messageId())
@@ -153,7 +151,6 @@ public class ChatService {
                 .then(roomWriteService.updateLastMsgId(event.roomId(), event.messageId(), event.createdAt(), event.message()));
     }
 
-    @Transactional(readOnly = true)
     public Flux<ChatModel.Message> getMessagesByCursor(Auth auth, ChatCommand.MessageCursor command
     ) {
         return chatMemberReadService.validateChatMember(command.roomId(), auth.subject())
@@ -166,5 +163,9 @@ public class ChatService {
                             case LATEST -> chatReadService.findLatestMessages(command.roomId(), command.size());
                         })
                 .map(ChatModel.Message::from);
+    }
+
+    public boolean userConnectedLocally(Long subject) {
+        return userSinks.containsKey(subject);
     }
 }

@@ -85,6 +85,20 @@ public class KafkaEvent {
             String message,
             LocalDateTime createdAt
     ) {
+        public Sync toSyncEvent() {
+            return Sync.builder()
+                    .messageType(messageType)
+                    .roomId(roomId)
+                    .sender(sender)
+                    .build();
+        }
+    }
 
+    @Builder
+    public record Sync(
+            MessageType messageType,
+            String roomId,
+            Long sender
+    ) {
     }
 }

@@ -43,6 +43,14 @@ public class KafkaConfig {
     }
 
     @Bean
+    public NewTopic syncTopic() {
+        return TopicBuilder.name(kafkaProperties.syncTopic())
+                .partitions(3)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
     public DefaultErrorHandler errorHandler(KafkaTemplate<Object, Object> template) {
         DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(template);
 
