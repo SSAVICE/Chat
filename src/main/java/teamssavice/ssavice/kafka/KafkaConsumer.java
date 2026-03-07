@@ -32,7 +32,8 @@ public class KafkaConsumer {
             chatService.subscribeLocalUsersToRoom(event.roomId()).block();
         }
 
-        chatService.sendMessageToLocalSubscribers(event).subscribe();
+        chatService.sendMessageToLocalSubscribers(event)
+                .block();
     }
 
     @KafkaListener(
@@ -76,7 +77,7 @@ public class KafkaConsumer {
     public void listen(KafkaEvent.Sync event) {
         if(chatService.userConnectedLocally(event.sender())) {
             log.info("consume Sync Event {}: {}", event.messageType(), event.roomId());
-            handleSyncEvent(event).subscribe();
+            handleSyncEvent(event).block();
         }
     }
 
