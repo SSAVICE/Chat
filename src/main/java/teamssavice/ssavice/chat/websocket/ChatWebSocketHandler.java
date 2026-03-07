@@ -10,6 +10,7 @@ import org.springframework.web.reactive.socket.WebSocketSession;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
+import teamssavice.ssavice.chat.ChatMessage;
 import teamssavice.ssavice.chat.MessageType;
 import teamssavice.ssavice.chat.service.ChatService;
 import teamssavice.ssavice.chat.service.dto.ChatCommand;
@@ -38,6 +39,7 @@ public class ChatWebSocketHandler implements WebSocketHandler {
         return subjectMono.flatMap(subject -> {
             // 클라이언트로부터 온 pong을 output 스트림으로 보내기 위한 Sink
             Sinks.Many<WebSocketMessage> pongSink = Sinks.many().unicast().onBackpressureBuffer();
+            Sinks.Many<WebSocketMessage> errorSink = Sinks.many().unicast().onBackpressureBuffer();
 
             // 1. 입력 처리 (Client -> Server)
             Mono<Void> input = session.receive()
@@ -58,7 +60,8 @@ public class ChatWebSocketHandler implements WebSocketHandler {
                                     ChatCommand.Chat command = ChatCommand.Chat.from(req, subject);
 
                                     return roomService.createDMRoomIfNotExist(command)
-                                            .flatMap(isNewRoom -> chatService.sendMessage(command, isNewRoom));
+                                            .flatMap(isNewRoom -> chatService.sendMessage(command, isNewRoom))
+                                            .onErrorResume(e -> sendErrorMessage(errorSink, session, command.roomId()));
                                 });
                     })
                     .doOnError(TimeoutException.class, e -> log.info("User {} 세션 타임아웃 - 연결 종료", subject))
@@ -71,14 +74,17 @@ public class ChatWebSocketHandler implements WebSocketHandler {
                             Mono.<String>fromCallable(() -> objectMapper.writeValueAsString(message))
                                     .map(session::textMessage)
                                     .onErrorResume(e -> {
-                                        log.error("Kafka 전송 실패 roomId={}", message.getRoomId(), e);
+                                        log.error("메시지 전송 실패 roomId={}", message.getRoomId(), e);
                                         return Mono.empty();
                                     })
                     )
                     .doFinally(signal -> log.info("output Flux 종료: {}", signal));
 
             // 채팅 메시지(output)와 PONG 응답(pongSink)를 하나로 병합
-            Flux<WebSocketMessage> combinedOutput = Flux.merge(output, pongSink.asFlux());
+            Flux<WebSocketMessage> combinedOutput = Flux.merge(
+                    output,
+                    errorSink.asFlux(),
+                    pongSink.asFlux());
             // 병합된 combinedOutput을 전송
             return Mono.when(input, session.send(combinedOutput));
         });
@@ -91,4 +97,18 @@ public class ChatWebSocketHandler implements WebSocketHandler {
                     return Mono.empty(); // 이 메시지만 drop
                 });
     }
+
+    private Mono<Void> sendErrorMessage(Sinks.Many<WebSocketMessage> errorSink, WebSocketSession session, String roomId) {
+        ChatMessage errorMessage = ChatMessage.createErrorMessage(roomId);
+
+        return Mono.fromCallable(() -> objectMapper.writeValueAsString(errorMessage))
+                .doOnNext(json -> errorSink.tryEmitNext(session.textMessage(json)))
+                .doOnError(e -> log.error("에러 메시지 직렬화 실패", e))
+                .onErrorResume(e -> {
+                    log.error("Error 메시지 전송 실패 roomId={}", roomId, e);
+                    return Mono.empty();
+                })
+                .then();
+    }
+
 }

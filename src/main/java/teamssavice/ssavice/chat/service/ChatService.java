@@ -76,8 +76,7 @@ public class ChatService {
                             kafkaProducer.publish(command.roomId(), KafkaEvent.Chat.from(messageId, command, isNewRoom)),
                             kafkaProducer.publish(command.roomId(), KafkaEvent.Save.from(messageId, command))
                         )
-                        ).doOnError(e -> log.error("Kafka 전송 실패: {}", e.getMessage(), e))
-                .onErrorResume(e -> Mono.empty());
+                        ).doOnError(e -> log.error("Kafka 전송 실패: {}", e.getMessage(), e));
     }
 
     public Mono<Void> readMessage(ChatCommand.Read command) {

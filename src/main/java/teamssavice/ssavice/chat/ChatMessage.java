@@ -23,4 +23,12 @@ public class ChatMessage {
     private Long serviceId;
     private LocalDateTime createdAt;
     private Long readMsgId;
+
+    public static ChatMessage createErrorMessage(String roomId) {
+        return ChatMessage.builder()
+                .messageType(MessageType.ERROR)
+                .roomId(roomId)
+                .message("메시지 전송에 실패했습니다. 다시 시도해주세요.")
+                .build();
+    }
 }
