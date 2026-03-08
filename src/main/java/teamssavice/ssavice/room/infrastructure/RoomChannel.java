@@ -5,21 +5,22 @@ import reactor.core.publisher.Sinks;
 import teamssavice.ssavice.chat.ChatMessage;
 
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class RoomChannel {
     private final Sinks.Many<ChatMessage> sink;
     private final Flux<ChatMessage> flux;
+    private final AtomicInteger subscriberCount = new AtomicInteger(0);
 
     public RoomChannel(String roomId, Map<String, RoomChannel> rooms) {
         this.sink = Sinks.many().multicast().onBackpressureBuffer();
         this.flux = sink.asFlux()
+                .doOnSubscribe(sub -> subscriberCount.incrementAndGet())
                 .doFinally(sig -> {
-                    if (sink.currentSubscriberCount() == 0) {
+                    if (subscriberCount.decrementAndGet() == 0) {
                         rooms.remove(roomId);
                     }
-                })
-                .publish()
-                .refCount(1);  // 마지막 사용자가 나가면 방 삭제
+                });
     }
 
     public void emit(ChatMessage message) {
