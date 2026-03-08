@@ -3,11 +3,11 @@ package teamssavice.ssavice.chat.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 import teamssavice.ssavice.chat.ChatMessage;
-import teamssavice.ssavice.chat.SubscribeType;
 import teamssavice.ssavice.chat.service.dto.ChatCommand;
 import teamssavice.ssavice.chat.service.dto.ChatModel;
 import teamssavice.ssavice.chatmember.entity.ChatMemberEntity;
@@ -22,6 +22,7 @@ import teamssavice.ssavice.room.service.RoomWriteService;
 
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
@@ -37,43 +38,78 @@ public class ChatService {
     private final ChatMemberWriteService chatMemberWriteService;
     private final ChatMemberReadService chatMemberReadService;
 
-    private final Map<Long, Sinks.Many<ChatCommand.Subscribe>> userSinks = new ConcurrentHashMap<>(); // User가 roomId를 emit하는 용도
     private final Map<String, RoomChannel> rooms = new ConcurrentHashMap<>();
 
-    public Flux<ChatMessage> registerUser(Long subject) {
-        Sinks.Many<ChatCommand.Subscribe> userSink = Sinks.many().unicast().onBackpressureBuffer();
-        userSinks.put(subject, userSink);
+    // 구독할 roomId를 emit하는 Sink (unicast - 초기 버퍼링 보장)
+    private final Map<Long, Sinks.Many<String>> userSinks = new ConcurrentHashMap<>();
 
-        chatMemberReadService.findAllBySubject(subject)
+    // 구독 해제할 roomId를 emit하는 Sink (multicast - 방마다 개별 takeUntilOther 구독)
+    private final Map<Long, Sinks.Many<String>> unsubscribeSinks = new ConcurrentHashMap<>();
+
+    public Flux<ChatMessage> registerUser(Long subject) {
+        Sinks.Many<String> userSink = Sinks.many().unicast().onBackpressureBuffer();
+        Sinks.Many<String> unsubscribeSink = Sinks.many().multicast().onBackpressureBuffer();
+
+        userSinks.put(subject, userSink);
+        unsubscribeSinks.put(subject, unsubscribeSink);
+
+        // DB 조회를 체인과 분리해서 즉시 실행
+        // → userSink.asFlux() 구독과 병렬로 시작
+        // → WebSocket 연결 직후부터 동적 subscribe/unsubscribe 즉시 반영 가능
+        Disposable initialLoad = chatMemberReadService.findAllBySubject(subject)
                 .map(ChatMemberEntity::getRoomId)
-                .subscribe(
-                        roomId -> userSink.tryEmitNext(new ChatCommand.Subscribe(roomId, SubscribeType.SUBSCRIBE)),
-                        e -> log.error("userSink에 emit 실패: {}", e.getMessage(), e)
-                );
+                .doOnNext(userSink::tryEmitNext)
+                .doOnError(e -> {
+                    log.error("초기 채팅방 구독 조회 실패: subject={}, error={}", subject, e.getMessage(), e);
+                    userSink.tryEmitError(e);
+                })
+                .subscribe();
 
         return userSink.asFlux()
-                .scan(new HashSet<String>(), (activeRooms, cmd) -> {
-                    if (SubscribeType.SUBSCRIBE.equals(cmd.subscribeType())) {
-                        activeRooms.add(cmd.roomId());
-                    } else {
-                        activeRooms.remove(cmd.roomId());
-                    }
-                    return new HashSet<>(activeRooms);
+                // scan: 구독 명령을 누적해서 현재 구독 중인 방 목록(상태)으로 변환
+                // 초기값 {}도 emit되므로 buffer(2,1)의 첫 번째 쌍은 [{}, {A}]
+                .scan(new HashSet<String>(), (activeRooms, roomId) -> {
+                    HashSet<String> newRooms = new HashSet<>(activeRooms);
+                    newRooms.add(roomId);
+                    return newRooms;
                 })
-                .switchMap(activeRooms ->
-                        Flux.merge(
-                                activeRooms.stream()
-                                        .map(roomId -> rooms.computeIfAbsent(roomId, id -> new RoomChannel(id, rooms)).getFlux())
-                                        .toList())
-                )
-                .doFinally(sig -> userSinks.remove(subject));
+                // buffer(2, 1): [이전 상태, 현재 상태] 쌍으로 슬라이딩
+                // → diff 계산으로 새로 추가된 방만 구독 (전체 재구독 방지)
+                .buffer(2, 1)
+                .filter(snapshots -> snapshots.size() == 2)
+                .flatMap(snapshots -> {
+                    Set<String> prev = snapshots.get(0);
+                    Set<String> curr = snapshots.get(1);
+
+                    // curr - prev = 새로 추가된 방만 구독
+                    Set<String> added = new HashSet<>(curr);
+                    added.removeAll(prev);
+
+                    return Flux.fromIterable(added)
+                            .flatMap(roomId ->
+                                    rooms.computeIfAbsent(roomId, id -> new RoomChannel(id, rooms))
+                                            .getFlux()
+                                            // unsubscribeSink에서 이 roomId에 대한 해제 신호가 오면 구독 종료
+                                            // → RoomChannel.subscriberCount 감소 → 0이면 rooms에서 자동 제거
+                                            .takeUntilOther(
+                                                    unsubscribeSink.asFlux()
+                                                            .filter(id -> id.equals(roomId))
+                                            )
+                            );
+                })
+                .doFinally(sig -> {
+                    initialLoad.dispose(); // DB 조회 구독 정리
+                    userSinks.remove(subject);
+                    unsubscribeSinks.remove(subject);
+                    log.debug("유저 연결 종료: subject={}, signal={}", subject, sig);
+                });
     }
 
     public Mono<Void> sendMessage(ChatCommand.Chat command, boolean isNewRoom) {
         return messageIdGenerator.nextMessageId(command.roomId())
-                    .flatMap(messageId ->
+                .flatMap(messageId ->
                         Mono.when(kafkaProducer.publish(command.roomId(), KafkaEvent.Chat.from(messageId, command, isNewRoom)))
-                        ).doOnError(e -> log.error("Kafka 전송 실패: {}", e.getMessage(), e));
+                ).doOnError(e -> log.error("Kafka 전송 실패: {}", e.getMessage(), e));
     }
 
     public Mono<Void> readMessage(ChatCommand.Read command) {
@@ -99,7 +135,7 @@ public class ChatService {
 
         String roomId = event.roomId();
         RoomChannel room = rooms.get(roomId);
-        if(room != null) {
+        if (room != null) {
             room.emit(model);
         }
         return Mono.empty();
@@ -114,19 +150,21 @@ public class ChatService {
                 .then();
     }
 
+    // 새 채팅방 참여 시 userSink에 roomId emit → scan → buffer → flatMap 체인에서 즉시 반영
     public Mono<Void> subscribeUserToRoom(Long subject, String roomId) {
-        Sinks.Many<ChatCommand.Subscribe> userSink = userSinks.get(subject);
-        if(userSink == null) return Mono.empty();
+        Sinks.Many<String> userSink = userSinks.get(subject);
+        if (userSink == null) return Mono.empty();
 
-        return Mono.fromCallable(() -> userSink.tryEmitNext(new ChatCommand.Subscribe(roomId, SubscribeType.SUBSCRIBE)))
+        return Mono.fromCallable(() -> userSink.tryEmitNext(roomId))
                 .then();
     }
 
+    // 채팅방 나가기 시 unsubscribeSink에 roomId emit → takeUntilOther가 감지 → 해당 방 구독 즉시 종료
     public Mono<Void> unsubscribeUserToRoom(Long subject, String roomId) {
-        Sinks.Many<ChatCommand.Subscribe> userSink = userSinks.get(subject);
-        if(userSink == null) return Mono.empty();
+        Sinks.Many<String> unsubscribeSink = unsubscribeSinks.get(subject);
+        if (unsubscribeSink == null) return Mono.empty();
 
-        return Mono.fromCallable(() -> userSink.tryEmitNext(new ChatCommand.Subscribe(roomId, SubscribeType.UNSUBSCRIBE)))
+        return Mono.fromCallable(() -> unsubscribeSink.tryEmitNext(roomId))
                 .then();
     }
 
@@ -147,8 +185,7 @@ public class ChatService {
                 .then(roomWriteService.updateLastMsgId(event.roomId(), event.messageId(), event.createdAt(), event.message()));
     }
 
-    public Flux<ChatModel.Message> getMessagesByCursor(Auth auth, ChatCommand.MessageCursor command
-    ) {
+    public Flux<ChatModel.Message> getMessagesByCursor(Auth auth, ChatCommand.MessageCursor command) {
         return chatMemberReadService.validateChatMember(command.roomId(), auth.subject())
                 .thenMany(
                         switch (command.direction()) {

@@ -20,25 +20,25 @@ public class TestController {
     public void joinTest() {
         KafkaEvent.Join event = KafkaEvent.Join.builder()
                 .messageType(MessageType.JOIN)
-                .roomType(RoomType.GROUP)
-                .roomId("testroomIdIDId")
-                .roomName("testroomIdIDId")
+                .roomType(RoomType.DM)
+                .roomId("1_2")
+                .roomName("1_2")
                 .sender(1L)
                 .createdAt(LocalDateTime.now())
                 .build();
-        kafkaProducer.publish("testroomIdIDId", event).subscribe();
+        kafkaProducer.publish("1_2", event).subscribe();
     }
 
     @GetMapping("/leave")
     public void leaveTest() {
         KafkaEvent.Join event = KafkaEvent.Join.builder()
                 .messageType(MessageType.LEAVE)
-                .roomType(RoomType.GROUP)
-                .roomId("testroomIdIDId")
-                .roomName("testroomIdIDId")
+                .roomType(RoomType.DM)
+                .roomId("1_2")
+                .roomName("1_2")
                 .sender(1L)
                 .createdAt(LocalDateTime.now())
                 .build();
-        kafkaProducer.publish("testroomIdIDId", event).subscribe();
+        kafkaProducer.publish("1_2", event).subscribe();
     }
 }
