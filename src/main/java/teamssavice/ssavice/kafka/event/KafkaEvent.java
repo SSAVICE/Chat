@@ -60,17 +60,17 @@ public class KafkaEvent {
         Long serviceId,
         LocalDateTime createdAt
     ) {
-        public static Save from(Long messageId, ChatCommand.Chat command) {
+        public static Save from(KafkaEvent.Chat event) {
             return Save.builder()
-                    .messageId(messageId)
-                    .messageType(command.messageType())
-                    .roomType(command.roomType())
-                    .roomId(command.roomId())
-                    .receiver(command.receiver())
-                    .sender(command.sender())
-                    .message(command.message())
-                    .serviceId(command.serviceId())
-                    .createdAt(command.createdAt())
+                    .messageId(event.messageId())
+                    .messageType(event.messageType())
+                    .roomType(event.roomType())
+                    .roomId(event.roomId())
+                    .receiver(event.receiver())
+                    .sender(event.sender())
+                    .message(event.message())
+                    .serviceId(event.serviceId())
+                    .createdAt(event.createdAt())
                     .build();
         }
     }

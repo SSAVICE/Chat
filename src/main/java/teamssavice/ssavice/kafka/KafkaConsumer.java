@@ -33,6 +33,7 @@ public class KafkaConsumer {
         }
 
         chatService.sendMessageToLocalSubscribers(event)
+                .then(kafkaProducer.publish(event.roomId(), KafkaEvent.Save.from(event)))
                 .block();
     }
 

@@ -72,10 +72,7 @@ public class ChatService {
     public Mono<Void> sendMessage(ChatCommand.Chat command, boolean isNewRoom) {
         return messageIdGenerator.nextMessageId(command.roomId())
                     .flatMap(messageId ->
-                        Mono.when(
-                            kafkaProducer.publish(command.roomId(), KafkaEvent.Chat.from(messageId, command, isNewRoom)),
-                            kafkaProducer.publish(command.roomId(), KafkaEvent.Save.from(messageId, command))
-                        )
+                        Mono.when(kafkaProducer.publish(command.roomId(), KafkaEvent.Chat.from(messageId, command, isNewRoom)))
                         ).doOnError(e -> log.error("Kafka 전송 실패: {}", e.getMessage(), e));
     }
 
