@@ -10,6 +10,7 @@ import teamssavice.ssavice.chatmember.service.ChatMemberService;
 import teamssavice.ssavice.kafka.event.KafkaEvent;
 import teamssavice.ssavice.room.service.RoomService;
 
+import java.time.Duration;
 import java.util.List;
 
 @Slf4j
@@ -29,12 +30,12 @@ public class KafkaConsumer {
     public void listen(KafkaEvent.Chat event) {
         log.info("consume: {}", event.message());
         if(event.isNewRoom()) {
-            chatService.subscribeLocalUsersToRoom(event.roomId()).block();
+            chatService.subscribeLocalUsersToRoom(event.roomId()).block(Duration.ofSeconds(5));
         }
 
         chatService.sendMessageToLocalSubscribers(event)
                 .then(kafkaProducer.publish(event.roomId(), KafkaEvent.Save.from(event)))
-                .block();
+                .block(Duration.ofSeconds(5));
     }
 
     @KafkaListener(
@@ -43,7 +44,7 @@ public class KafkaConsumer {
     )
     public void listen(KafkaEvent.Save event) {
         chatService.saveMessageAndUpdateRoom(event)
-                .block();
+                .block(Duration.ofSeconds(5));
     }
 
     @KafkaListener(
@@ -51,7 +52,7 @@ public class KafkaConsumer {
             groupId = "chat-server-join-group"
     )
     public void listen(KafkaEvent.Join event) {
-        handleJoinEvent(event).block();
+        handleJoinEvent(event).block(Duration.ofSeconds(5));
 
     }
 
@@ -78,7 +79,7 @@ public class KafkaConsumer {
     public void listen(KafkaEvent.Sync event) {
         if(chatService.userConnectedLocally(event.sender())) {
             log.info("consume Sync Event {}: {}", event.messageType(), event.roomId());
-            handleSyncEvent(event).block();
+            handleSyncEvent(event).block(Duration.ofSeconds(5));
         }
     }
 
