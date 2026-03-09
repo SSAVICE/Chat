@@ -9,5 +9,6 @@ import java.util.Map;
 
 public record RoomQueryResult(
         List<RoomEntity> rooms,
-        Map<String, Collection<ChatMemberEntity>> memberMap
+        Map<String, Collection<ChatMemberEntity>> memberMap,
+        Map<String, String> nameMap
 ) {}

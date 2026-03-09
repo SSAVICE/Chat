@@ -19,7 +19,7 @@ import teamssavice.ssavice.global.dto.Auth;
 @RequestMapping("/api/chat")
 @RequiredArgsConstructor
 @Validated
-public class ChatController {
+public class ChatRestController {
 
     private final ChatService chatService;
 

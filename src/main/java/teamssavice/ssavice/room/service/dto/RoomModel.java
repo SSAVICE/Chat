@@ -25,10 +25,10 @@ public class RoomModel {
             LocalDateTime lastMsgAt // 마지막 메시지 시간
 
     ) {
-        public static RoomModel.Room of(RoomEntity room, int memberCnt, Long lastReadMsgId) {
+        public static RoomModel.Room of(RoomEntity room, int memberCnt, Long lastReadMsgId, String roomName) {
             return Room.builder()
                     .roomId(room.getRoomId())
-                    .roomName(room.getRoomName())
+                    .roomName(roomName)
                     .roomType(room.getType())
                     .serviceId(room.getLastServiceId())
                     .lastMsgId(room.getLastMsgId())

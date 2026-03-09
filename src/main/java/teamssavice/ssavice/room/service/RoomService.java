@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
+import teamssavice.ssavice.account.service.AccountReadService;
 import teamssavice.ssavice.chat.service.dto.ChatCommand;
 import teamssavice.ssavice.chatmember.entity.ChatMemberEntity;
 import teamssavice.ssavice.chatmember.service.ChatMemberReadService;
@@ -26,6 +27,7 @@ public class RoomService {
     private final ChatMemberWriteService chatMemberWriteService;
     private final RoomReadService roomReadService;
     private final RoomWriteService roomWriteService;
+    private final AccountReadService accountReadService;
 
     public Mono<List<RoomModel.Room>> findAllRooms(Auth auth) {
 
@@ -34,7 +36,7 @@ public class RoomService {
                     List<String> roomIds = new ArrayList<>(myMemberMap.keySet());
                     if (myMemberMap.isEmpty()) return Mono.just(Collections.emptyList());
 
-                    return getRoomsWithDependencies(roomIds)
+                    return getRoomsWithDependencies(roomIds, auth.subject())
                             .map(data -> assembleRooms(data, myMemberMap));
                 });
     }
@@ -44,16 +46,17 @@ public class RoomService {
                 .collectMap(ChatMemberEntity::getRoomId);
     }
 
-    private Mono<RoomQueryResult> getRoomsWithDependencies(List<String> roomIds) {
+    private Mono<RoomQueryResult> getRoomsWithDependencies(List<String> roomIds, Long mySubject) {
 
         return roomReadService.findAllByRoomIdIn(roomIds)
                 .collectList()
                 .flatMap(rooms ->
                         Mono.zip(
                             Mono.just(rooms),
-                            chatMemberReadService.findAllByRoomIdIn(roomIds).collectMultimap(ChatMemberEntity::getRoomId)
+                            chatMemberReadService.findAllByRoomIdIn(roomIds).collectMultimap(ChatMemberEntity::getRoomId),
+                                accountReadService.getNameMap(rooms, mySubject)
                     ))
-                .map(tuple -> new RoomQueryResult(tuple.getT1(), tuple.getT2()));
+                .map(tuple -> new RoomQueryResult(tuple.getT1(), tuple.getT2(), tuple.getT3()));
     }
 
     private List<RoomModel.Room> assembleRooms(
@@ -64,7 +67,8 @@ public class RoomService {
             Collection<ChatMemberEntity> members = data.memberMap().getOrDefault(room.getRoomId(), List.of());
             Long lastReadMsgId = myMemberMap.get(room.getRoomId()).getLastReadMsgId();
 
-            return RoomModel.Room.of(room, members.size(), lastReadMsgId);
+            String roomName = RoomType.DM.equals(room.getType()) ? data.nameMap().get(room.getRoomName()) : room.getRoomName();
+            return RoomModel.Room.of(room, members.size(), lastReadMsgId, roomName);
         }).toList();
     }
 
@@ -105,5 +109,6 @@ public class RoomService {
         boolean isMember = members.stream().anyMatch(m -> m.getSubject().equals(subject));
         return isMember ? Mono.empty() : Mono.error(new ForbiddenException(ErrorCode.FORBIDDEN));
     }
+
 
 }
