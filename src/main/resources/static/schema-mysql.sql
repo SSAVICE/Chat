@@ -30,5 +30,6 @@ CREATE TABLE IF NOT EXISTS chat_message (
     receiver BIGINT,                        -- Long receiver
     sender BIGINT NOT NULL,      		    -- Long sender
     message VARCHAR(255),      		        -- String sender
-    created_at TIMESTAMP NOT NULL           -- createdAt
+    created_at TIMESTAMP NOT NULL,          -- createdAt
+    service_id VARCHAR(20)                  -- Long serviceId
 );

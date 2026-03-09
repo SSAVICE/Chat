@@ -31,7 +31,8 @@ public class ChatResponse {
         String roomId,
         Long sender,
         String message,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        Long serviceId
     ) {
         public static ChatResponse.Message from(ChatModel.Message model) {
             return Message.builder()
@@ -42,6 +43,7 @@ public class ChatResponse {
                     .sender(model.sender())
                     .message(model.message())
                     .createdAt(model.createdAt())
+                    .serviceId(model.serviceId())
                     .build();
         }
     }

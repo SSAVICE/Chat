@@ -40,4 +40,6 @@ public class ChatMessageEntity {
 
     @NotNull
     private LocalDateTime createdAt;
+
+    private Long serviceId;
 }

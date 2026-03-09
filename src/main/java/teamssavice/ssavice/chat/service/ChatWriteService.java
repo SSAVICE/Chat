@@ -24,6 +24,7 @@ public class ChatWriteService {
                 .sender(command.sender())
                 .message(command.message())
                 .createdAt(command.createdAt())
+                .serviceId(command.serviceId())
                 .build();
 
         return chatMessageRepository.save(entity)

@@ -17,7 +17,8 @@ public class ChatModel {
         String roomId,
         Long sender,
         String message,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        Long serviceId
     ) {
         public static ChatModel.Message from(ChatMessageEntity entity) {
             return Message.builder()
@@ -28,6 +29,7 @@ public class ChatModel {
                     .sender(entity.getSender())
                     .message(entity.getMessage())
                     .createdAt(entity.getCreatedAt())
+                    .serviceId(entity.getServiceId())
                     .build();
         }
     }
