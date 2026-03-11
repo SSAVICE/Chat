@@ -88,7 +88,7 @@ public class GlobalExceptionHandler {
         ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.INTERNAL_SERVER_ERROR);
         problemDetail.setTitle("Internal Server Error");
         problemDetail.setDetail("Unknown error");
-        log.error("Internal Server Error", e);
+        log.error("Internal Server Error: {}", e.getMessage());
         return Mono.just(ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(problemDetail)

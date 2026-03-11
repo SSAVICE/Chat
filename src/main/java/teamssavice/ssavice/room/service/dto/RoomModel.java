@@ -35,7 +35,7 @@ public class RoomModel {
                     .unReadMsgCnt(room.getLastMsgId() - lastReadMsgId)
                     .memberCnt(memberCnt)
                     .lastMsg(room.getLastMsg())
-                    .lastMsgAt(room.getLastMsgAt())
+                    .lastMsgAt(room.getLastMsgAt() != null ? room.getLastMsgAt() : room.getCreatedAt())
                     .build();
         }
     }
