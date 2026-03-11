@@ -48,7 +48,7 @@ public class RoomModel {
             Long serviceId,
             Map<Long, Long> members
     ) {
-        public static RoomModel.Detail of(RoomEntity room, List<ChatMemberEntity> members) {
+        public static RoomModel.Detail of(RoomEntity room, List<ChatMemberEntity> members, String roomName) {
             Map<Long, Long> states = new HashMap<>(members.size());
             for (ChatMemberEntity member : members) {
                 states.put(member.getSubject(), member.getLastReadMsgId());
@@ -56,7 +56,7 @@ public class RoomModel {
 
             return Detail.builder()
                     .roomId(room.getRoomId())
-                    .roomName(room.getRoomName())
+                    .roomName(roomName)
                     .roomType(room.getType())
                     .serviceId(room.getLastServiceId())
                     .members(states)

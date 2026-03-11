@@ -5,7 +5,6 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 import teamssavice.ssavice.account.AccountInfoDto;
 import teamssavice.ssavice.account.infrastructure.repository.AccountRepository;
-import teamssavice.ssavice.global.constants.Role;
 import teamssavice.ssavice.room.RoomType;
 import teamssavice.ssavice.room.entity.RoomEntity;
 
@@ -34,7 +33,7 @@ public class AccountReadService {
                     Map<Long, String> subjectToName = dtos.stream()
                             .collect(Collectors.toMap(
                                     AccountInfoDto::getAccountId,
-                                    dto -> Role.USER.equals(dto.getRole()) ? dto.getUserName() : dto.getCompanyName()
+                                    AccountInfoDto::getName
                             ));
 
                     return rooms.stream()
@@ -54,6 +53,12 @@ public class AccountReadService {
                 ? Mono.just(Collections.emptyList())
                 : accountRepository.findAccountInfoDtoBySubjectIn(subjects)
                 .collectList();
+    }
+
+    public Mono<String> getOppName(String roomId, Long mySubject) {
+        long oppSubject = parseOpponentSubject(roomId, mySubject);
+        return accountRepository.findAccountInfoDtoBySubject(oppSubject)
+                .map(AccountInfoDto::getName);
     }
 
     private Long parseOpponentSubject(String roomName, Long mySubject) {
