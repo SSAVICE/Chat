@@ -76,16 +76,20 @@ public class RoomService {
 
         Mono<RoomEntity> roomMono = roomReadService.findByRoomId(roomId);
         Mono<List<ChatMemberEntity>> membersMono = chatMemberReadService.findAllByRoomId(roomId).collectList();
-        Mono<String> oppNameMono = accountReadService.getOppName(roomId, auth.subject());
 
-        return Mono.zip(roomMono, membersMono, oppNameMono)
+        return Mono.zip(roomMono, membersMono)
                 .flatMap(tuple -> {
                     RoomEntity room = tuple.getT1();
                     List<ChatMemberEntity> members = tuple.getT2();
-                    String roomName = RoomType.DM.equals(room.getType()) ? tuple.getT3() : room.getRoomName();
 
-                    return verifyMember(members, auth.subject())
-                            .then(Mono.just(RoomModel.Detail.of(room, members, roomName)));
+                    Mono<String> roomNameMono = RoomType.DM.equals(room.getType())
+                            ? accountReadService.getOppName(roomId, auth.subject())
+                            : Mono.just(room.getRoomName());
+
+                    return roomNameMono.flatMap(roomName ->
+                            verifyMember(members, auth.subject())
+                                    .then(Mono.just(RoomModel.Detail.of(room, members, roomName)))
+                    );
                 });
     }
 
