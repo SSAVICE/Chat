@@ -38,8 +38,8 @@ public class ChatWebSocketHandler implements WebSocketHandler {
 
         return subjectMono.flatMap(subject -> {
             // 클라이언트로부터 온 pong을 output 스트림으로 보내기 위한 Sink
-            Sinks.Many<WebSocketMessage> pongSink = Sinks.many().unicast().onBackpressureBuffer();
-            Sinks.Many<WebSocketMessage> errorSink = Sinks.many().unicast().onBackpressureBuffer();
+            Sinks.Many<WebSocketMessage> pongSink = Sinks.many().multicast().onBackpressureBuffer();
+            Sinks.Many<WebSocketMessage> errorSink = Sinks.many().multicast().onBackpressureBuffer();
 
             // 1. 입력 처리 (Client -> Server)
             Mono<Void> input = session.receive()
