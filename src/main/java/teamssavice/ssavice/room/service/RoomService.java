@@ -67,8 +67,9 @@ public class RoomService {
             Collection<ChatMemberEntity> members = data.memberMap().getOrDefault(room.getRoomId(), List.of());
             Long lastReadMsgId = myMemberMap.get(room.getRoomId()).getLastReadMsgId();
 
-            String roomName = RoomType.DM.equals(room.getType()) ? data.nameMap().get(room.getRoomName()) : room.getRoomName();
-            return RoomModel.Room.of(room, members.size(), lastReadMsgId, roomName);
+            String roomName = RoomType.DM.equals(room.getType()) ? data.nameMap().get(room.getRoomName()).getName() : room.getRoomName();
+            Long thumbnailId = RoomType.DM.equals(room.getType()) ? data.nameMap().get(room.getRoomName()).getAccountId(): Long.valueOf(room.getRoomId());
+            return RoomModel.Room.of(room, members.size(), lastReadMsgId, roomName, thumbnailId);
         }).toList();
     }
 

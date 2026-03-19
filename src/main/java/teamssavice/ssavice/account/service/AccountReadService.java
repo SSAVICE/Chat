@@ -19,7 +19,7 @@ public class AccountReadService {
 
     private final AccountRepository accountRepository;
 
-    public Mono<Map<String, String>> getNameMap(List<RoomEntity> rooms, Long mySubject) {
+    public Mono<Map<String, AccountInfoDto>> getNameMap(List<RoomEntity> rooms, Long mySubject) {
         List<Long> oppSubjects = rooms.stream()
                 .filter(room -> RoomType.DM.equals(room.getType()))
                 .map(room -> parseOpponentSubject(room.getRoomName(), mySubject))
@@ -30,10 +30,10 @@ public class AccountReadService {
 
         return findAccountBySubjectIn(oppSubjects)
                 .map(dtos -> {
-                    Map<Long, String> subjectToName = dtos.stream()
+                    Map<Long, AccountInfoDto> subjectToDto = dtos.stream()
                             .collect(Collectors.toMap(
                                     AccountInfoDto::getAccountId,
-                                    AccountInfoDto::getName
+                                    dto -> dto
                             ));
 
                     return rooms.stream()
@@ -42,7 +42,7 @@ public class AccountReadService {
                                     RoomEntity::getRoomName,
                                     room -> {
                                         Long oppSubject = parseOpponentSubject(room.getRoomName(), mySubject);
-                                        return subjectToName.getOrDefault(oppSubject, "알 수 없음");
+                                        return subjectToDto.getOrDefault(oppSubject, AccountInfoDto.builder().userName("알 수 없음").build());
                                     }
                             ));
                 });

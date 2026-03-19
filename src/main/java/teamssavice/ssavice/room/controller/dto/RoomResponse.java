@@ -31,7 +31,8 @@ public class RoomResponse {
             Long unReadMsgCnt, // 안읽은 메시지 수
             int memberCnt,
             String lastMsg, // 마지막 메시지
-            LocalDateTime lastMsgAt // // 마지막 메시지 시간
+            LocalDateTime lastMsgAt, // 마지막 메시지 시간
+            Long thumbnailId
     ) {
         public static Room from(RoomModel.Room model) {
             return Room.builder()
@@ -44,6 +45,7 @@ public class RoomResponse {
                     .memberCnt(model.memberCnt())
                     .lastMsg(model.lastMsg())
                     .lastMsgAt(model.lastMsgAt())
+                    .thumbnailId(model.thumbnailId())
                     .build();
         }
     }
