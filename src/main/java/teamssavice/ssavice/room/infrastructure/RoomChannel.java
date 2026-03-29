@@ -13,7 +13,7 @@ public class RoomChannel {
     private final AtomicInteger subscriberCount = new AtomicInteger(0);
 
     public RoomChannel(String roomId, Map<String, RoomChannel> rooms) {
-        this.sink = Sinks.many().multicast().onBackpressureBuffer();
+        this.sink = Sinks.many().multicast().onBackpressureBuffer(1000);
         this.flux = sink.asFlux()
                 .doOnSubscribe(sub -> subscriberCount.incrementAndGet())
                 .doFinally(sig -> {
